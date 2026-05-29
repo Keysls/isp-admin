@@ -54,6 +54,20 @@ export const TIPO_LABEL = {
   RETIRO_EQUIPO_C:    'Retiro de Equipo Cable',
   SUPERVISION_C:      'Supervisión Cable',
   TRASLADO_C:         'Traslado Cable',
+  // ── Dúo (Internet + Cable) ─────────────────────────────────
+  INSTALACION_D:       'Instalación Dúo',
+  ALTA_SERVICIO_D:     'Alta de Servicio Dúo',
+  AVERIA_D:            'Avería Dúo',
+  BAJA_SERVICIO_D:     'Baja de Servicio Dúo',
+  CAMBIO_DOMICILIO_D:  'Cambio de Domicilio Dúo',
+  CAMBIO_EQUIPO_D:     'Cambio de Equipo Dúo',
+  CAMBIO_PLAN_D:       'Cambio de Plan Dúo',
+  CAMBIO_TITULAR_D:    'Cambio de Titular Dúo',
+  CORTE_SOLICITUD_D:   'Corte a Solicitud Dúo',
+  CORTE_DEUDA_D:       'Corte por Deuda Dúo',
+  RECONEXION_D:        'Reconexión Dúo',
+  RETIRO_EQUIPO_D:     'Retiro de Equipo Dúo',
+  TRASLADO_D:          'Traslado Dúo',
 };
 
 export const TIPO_COLOR = {
@@ -88,6 +102,20 @@ export const TIPO_COLOR = {
   RETIRO_EQUIPO_C:    '#94a3b8',
   SUPERVISION_C:      '#0284c7',
   TRASLADO_C:         '#0d9488',
+  // ── Dúo (Internet + Cable) ─────────────────────────────────
+  INSTALACION_D:       '#f97316',
+  ALTA_SERVICIO_D:     '#fb923c',
+  AVERIA_D:            '#ea580c',
+  BAJA_SERVICIO_D:     '#64748b',
+  CAMBIO_DOMICILIO_D:  '#f59e0b',
+  CAMBIO_EQUIPO_D:     '#fbbf24',
+  CAMBIO_PLAN_D:       '#d97706',
+  CAMBIO_TITULAR_D:    '#fcd34d',
+  CORTE_SOLICITUD_D:   '#ef4444',
+  CORTE_DEUDA_D:       '#dc2626',
+  RECONEXION_D:        '#f59e0b',
+  RETIRO_EQUIPO_D:     '#94a3b8',
+  TRASLADO_D:          '#f97316',
 };
 
 export const TIPOS_INTERNET = [
@@ -109,6 +137,12 @@ export const TIPOS_CABLE = [
   'CAMBIO_PLAN_C', 'CAMBIO_TITULAR_C', 'CORTE_SOLICITUD_C', 'CORTE_DEUDA_C',
   'INSTALACION_ANEXO_C', 'MIGRACION_FTTH_C', 'RECONEXION_C',
   'RETIRO_EQUIPO_C', 'SUPERVISION_C', 'TRASLADO_C',
+];
+export const TIPOS_DUO = [
+  'INSTALACION_D', 'ALTA_SERVICIO_D', 'AVERIA_D', 'BAJA_SERVICIO_D',
+  'CAMBIO_DOMICILIO_D', 'CAMBIO_EQUIPO_D', 'CAMBIO_PLAN_D', 'CAMBIO_TITULAR_D',
+  'CORTE_SOLICITUD_D', 'CORTE_DEUDA_D', 'RECONEXION_D',
+  'RETIRO_EQUIPO_D', 'TRASLADO_D',
 ];
 
 export const ESTADO_CONFIG = {

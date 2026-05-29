@@ -5,7 +5,7 @@ import { ArrowLeft, Phone, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi, BACKEND_URL } from '../services/api';
 import { Card, EstadoBadge, Btn, Select, Spinner, Modal, Avatar, TimerBadge } from '../components/ui';
-import { fmtFecha, fmtFechaHora, fmtMinutos, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, waLink } from '../utils/helpers';
+import { fmtFecha, fmtFechaHora, fmtMinutos, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_DUO, waLink } from '../utils/helpers';
 
 function InfoFila({ label, value }) {
   return (
@@ -99,6 +99,8 @@ export default function OrdenDetalle() {
   if (!orden) return <div style={{ padding: 28, color: 'var(--txt-3)' }}>Orden no encontrada</div>;
 
   const esInternet = TIPOS_INTERNET.includes(orden.tipoOrden);
+  const esDuo      = TIPOS_DUO.includes(orden.tipoOrden);
+  const tieneInternet = esInternet || esDuo;
   const inst       = orden.instalacion;
   const enCurso    = orden.estado === 'ACEPTADA' || orden.estado === 'EN_PROCESO';
 
@@ -119,7 +121,7 @@ export default function OrdenDetalle() {
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800 }}>Orden #{orden.nServicio}</h1>
             <EstadoBadge estado={orden.estado} />
             <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[orden.tipoOrden], background: TIPO_COLOR[orden.tipoOrden] + '15', padding: '3px 10px', borderRadius: 20 }}>
-              {esInternet ? '📡' : '📺'} {TIPO_LABEL[orden.tipoOrden] || orden.tipoOrden}
+              {esDuo ? '📡📺' : esInternet ? '📡' : '📺'} {TIPO_LABEL[orden.tipoOrden] || orden.tipoOrden}
             </span>
             {enCurso && orden.fechaAceptacion && <TimerBadge fechaAceptacion={orden.fechaAceptacion} completada={false} />}
             {orden.tiempoInstalacion && (
@@ -146,7 +148,7 @@ export default function OrdenDetalle() {
         <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', gap: 0 }}>
           {[
             { label: 'Creada',     fecha: orden.createdAt },
-            ...(esInternet ? [{ label: 'WAN OK', fecha: orden.fechaWan }] : []),
+            ...(tieneInternet ? [{ label: 'WAN OK', fecha: orden.fechaWan }] : []),
             { label: 'Aceptada',   fecha: orden.fechaAceptacion },
             { label: 'En campo',   fecha: orden.fechaInicio },
             { label: 'Completada', fecha: orden.fechaFin },
@@ -207,7 +209,7 @@ export default function OrdenDetalle() {
 
         {/* WAN + Técnico */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {esInternet && (
+          {tieneInternet && (
             <Card>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, color: 'var(--txt-3)', marginBottom: 10, letterSpacing: '0.06em' }}>WAN — NOC</h3>
               {orden.ipWan ? (
@@ -286,7 +288,7 @@ export default function OrdenDetalle() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: esInternet ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: tieneInternet ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' }}>
 
               {/* GPS */}
               <div style={{ padding: '14px 16px', borderRight: '1px solid var(--border)' }}>
@@ -304,7 +306,7 @@ export default function OrdenDetalle() {
               </div>
 
               {/* Config ONU — solo Internet */}
-              {esInternet && (
+              {tieneInternet && (
                 <div style={{ padding: '14px 16px', borderRight: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 10, color: 'var(--txt-3)', letterSpacing: '0.06em', marginBottom: 8 }}>SEÑAL ONU</div>
                   {inst.configOnu ? (
@@ -396,7 +398,7 @@ export default function OrdenDetalle() {
               ]}
             />
 
-            {esInternet && (
+            {tieneInternet && (
               <FichaSeccion
                 titulo="WAN"
                 campos={[
@@ -423,7 +425,7 @@ export default function OrdenDetalle() {
               campos={[
                 ['GPS Latitud',    inst.latitud],
                 ['GPS Longitud',   inst.longitud],
-                ...(esInternet ? [
+                ...(tieneInternet ? [
                   ['WiFi SSID',      inst.configOnu?.ssid],
                   ['N° Serie ONU',   inst.configOnu?.serialNumber],
                   ['RX (dBm)',       inst.configOnu?.potenciaRx],

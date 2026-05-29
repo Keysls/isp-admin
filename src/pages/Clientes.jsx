@@ -321,6 +321,7 @@ export default function ClientesPage() {
               { key: '',         label: 'Todos'    },
               { key: 'INTERNET', label: '📡 Internet' },
               { key: 'CABLE',    label: '📺 Cable'    },
+              { key: 'DUO',      label: '📡📺 Dúo'   },
             ].map(t => (
               <button key={t.key} onClick={() => setTipoServicio(t.key)}
                 style={{
@@ -453,6 +454,10 @@ export default function ClientesPage() {
                     <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
                       {c.numero}
                     </span>
+              <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>·</span>
+              <span style={{ fontSize: 12, color: 'var(--txt-2)' }}>
+              📡📺 {resultado.contratos.filter(c => c.tipoServicio === 'DUO').length} Dúo
+              </span>
                   </Td>
                   <Td>
                     <div style={{ fontWeight: 500 }}>{c.abonado}</div>

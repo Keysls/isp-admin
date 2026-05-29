@@ -5,7 +5,7 @@ import { Upload, Search, RefreshCw, X, CheckCircle2, AlertCircle, UserCheck } fr
 import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Table, Tr, Td, Btn, Modal, Input, Select, Spinner, Empty, TimerBadge } from '../components/ui';
-import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
+import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, TIPOS_DUO, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
 
 // ── Hook: detectar si es móvil ────────────────────────────────
 function useIsMobile(breakpoint = 640) {
@@ -373,6 +373,7 @@ export default function OrdenesPage() {
       page, limit: 15,
       ...(tab === 'internet' && { tipos: TIPOS_INTERNET.join(',') }),
       ...(tab === 'cable'    && { tipos: TIPOS_CABLE.join(',') }),
+      ...(tab === 'duo'      && { tipos: TIPOS_DUO.join(',') }),
     }).then(r => r.data),
     refetchInterval: 30000,
   });
@@ -425,6 +426,7 @@ export default function OrdenesPage() {
           { key: 'todos',    label: 'Todos' },
           { key: 'internet', label: '📡 Internet' },
           { key: 'cable',    label: '📺 Cable' },
+          { key: 'duo',      label: '📡📺 Dúo' },
         ].map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
             style={{
