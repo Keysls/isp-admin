@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Upload, Search, RefreshCw, X, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
+import { Upload, Search, RefreshCw, X, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Table, Tr, Td, Btn, Modal, Input, Select, Spinner, Empty, TimerBadge } from '../components/ui';
 import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, TIPOS_DUO, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
 
-// ── Hook: detectar si es móvil ────────────────────────────────
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
   useEffect(() => {
@@ -18,7 +18,6 @@ function useIsMobile(breakpoint = 640) {
   return isMobile;
 }
 
-// ── Estilos responsivos globales (inyectados una vez) ─────────
 const MOBILE_STYLES = `
   @media (max-width: 639px) {
     .ordenes-header        { flex-direction: column; gap: 12px; }
@@ -46,75 +45,119 @@ function InjectStyles() {
       el.textContent = MOBILE_STYLES;
       document.head.appendChild(el);
     }
-    return () => {};
   }, []);
   return null;
 }
 
+// ── Checkbox estilizado ───────────────────────────────────────
+function Checkbox({ checked, indeterminate, onChange, onClick }) {
+  const ref = React.useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      onClick={onClick}
+      style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }}
+    />
+  );
+}
+
+// ── Barra flotante de selección masiva ────────────────────────
+function BarraSeleccion({ seleccionados, ordenes, onAsignarMasivo, onLimpiar }) {
+  if (seleccionados.size === 0) return null;
+  const n = seleccionados.size;
+  return createPortal(
+    <div style={{
+      position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, display: 'flex', alignItems: 'center', gap: 12,
+      background: 'var(--bg-card)', border: '1.5px solid var(--accent)',
+      borderRadius: 12, padding: '10px 16px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+        {n} orden{n !== 1 ? 'es' : ''} seleccionada{n !== 1 ? 's' : ''}
+      </span>
+      <Btn variant="primary" size="sm" icon={<UserCheck size={13} />} onClick={onAsignarMasivo}>
+        Asignar técnico
+      </Btn>
+      <button onClick={onLimpiar} style={{
+        background: 'none', border: 'none', cursor: 'pointer',
+        color: 'var(--txt-3)', display: 'flex', alignItems: 'center', padding: 2,
+      }}>
+        <X size={15} />
+      </button>
+    </div>,
+    document.body
+  );
+}
+
 // ── Tarjeta de orden para vista móvil ────────────────────────
-function OrdenCard({ o, onAsignar, onNavigate }) {
+function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSeleccion }) {
   return (
     <div
-      onClick={() => onNavigate(o.id)}
       style={{
         padding: '14px 16px',
         borderBottom: '1px solid var(--border)',
         cursor: 'pointer',
-        background: 'var(--bg)',
+        background: seleccionado ? 'color-mix(in srgb, var(--accent) 8%, var(--bg))' : 'var(--bg)',
         transition: 'background .15s',
         WebkitTapHighlightColor: 'transparent',
+        display: 'flex', gap: 10, alignItems: 'flex-start',
       }}
-      onTouchStart={e => { e.currentTarget.style.background = 'var(--bg-3)'; }}
-      onTouchEnd={e => { e.currentTarget.style.background = 'var(--bg)'; }}
+      onClick={() => modoSeleccion ? onToggle() : onNavigate(o.id)}
+      onTouchStart={e => { if (!modoSeleccion) e.currentTarget.style.background = 'var(--bg-3)'; }}
+      onTouchEnd={e => { if (!modoSeleccion) e.currentTarget.style.background = 'var(--bg)'; }}
     >
-      {/* Fila 1: N° orden + estado */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
-          #{o.nServicio}
-        </span>
-        <EstadoBadge estado={o.estado} />
-      </div>
-
-      {/* Fila 2: Abonado */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{o.abonado}</div>
-      {o.dni && <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 4 }}>{o.dni}</div>}
-
-      {/* Fila 3: Dirección */}
-      <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: o.referencia ? 2 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {o.direccion}
-      </div>
-      {o.referencia && (
-        <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Ref: {o.referencia}
+      {/* Checkbox en móvil */}
+      {modoSeleccion && (
+        <div style={{ paddingTop: 2 }}>
+          <Checkbox checked={seleccionado} onChange={onToggle} onClick={e => e.stopPropagation()} />
         </div>
       )}
 
-      {/* Fila 4: Servicio + Fecha */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-          {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>·</span>
-        <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fmtFecha(o.fechaServicio)}</span>
-      </div>
-
-      {/* Fila 5: Técnico + botón asignar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, color: o.tecnico ? 'var(--txt-2)' : 'var(--txt-3)' }}>
-          {o.tecnico
-            ? `👷 ${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}`
-            : 'Sin técnico asignado'}
-        </span>
-        {!o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && (
-          <Btn
-            variant="ghost"
-            size="sm"
-            icon={<UserCheck size={12} />}
-            onClick={e => { e.stopPropagation(); onAsignar(o); }}
-          >
-            Asignar
-          </Btn>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
+            #{o.nServicio}
+          </span>
+          <EstadoBadge estado={o.estado} />
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{o.abonado}</div>
+        {o.dni && <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 4 }}>{o.dni}</div>}
+        <div style={{ fontSize: 12, color: 'var(--txt-2)', marginBottom: o.referencia ? 2 : 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {o.direccion}
+        </div>
+        {o.referencia && (
+          <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Ref: {o.referencia}
+          </div>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
+            {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>·</span>
+          <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fmtFecha(o.fechaServicio)}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: o.tecnico ? 'var(--txt-2)' : 'var(--txt-3)' }}>
+            {o.tecnico
+              ? `👷 ${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}`
+              : 'Sin técnico asignado'}
+          </span>
+          {!modoSeleccion && !o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && (
+            <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
+              onClick={e => { e.stopPropagation(); onAsignar(o); }}>
+              Asignar
+            </Btn>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -123,6 +166,7 @@ function OrdenCard({ o, onAsignar, onNavigate }) {
 // ── Modal: Subir Excel ────────────────────────────────────────
 function ModalSubirExcel({ open, onClose }) {
   const qc = useQueryClient();
+
   const isMobile = useIsMobile();
   const [file,      setFile]      = useState(null);
   const [dragging,  setDragging]  = useState(false);
@@ -130,11 +174,12 @@ function ModalSubirExcel({ open, onClose }) {
   const [tecnicoId, setTecnicoId] = useState('');
   const [step,      setStep]      = useState('upload');
 
-  const { data: tecnicos } = useQuery({
+  const { data: tecnicosRaw } = useQuery({
     queryKey: ['tecnicos-activos'],
     queryFn:  () => tecnicosApi.listar({ activo: true }).then(r => r.data),
     enabled:  step === 'review',
   });
+  const tecnicos = tecnicosRaw || [];
 
   const subirMut = useMutation({
     mutationFn: (f) => {
@@ -153,15 +198,9 @@ function ModalSubirExcel({ open, onClose }) {
     }),
     onSuccess: async (res) => {
       toast.success(`✓ ${res.data.creadas} órdenes importadas`);
-      if (res.data.asignadas > 0)
-        toast.success(`👷 ${res.data.asignadas} asignadas al técnico`);
-      if (res.data.duplicadas > 0)
-        toast(`⚠ ${res.data.duplicadas} órdenes ya existían y fueron omitidas`, {
-          icon: '⚠️',
-          style: { background: 'var(--yellow-bg)', color: 'var(--yellow)' },
-        });
-      if (res.data.errores?.length > 0)
-        toast.error(`✗ ${res.data.errores.length} órdenes con error`);
+      if (res.data.asignadas > 0)  toast.success(`👷 ${res.data.asignadas} asignadas al técnico`);
+      if (res.data.duplicadas > 0) toast(`⚠ ${res.data.duplicadas} órdenes ya existían y fueron omitidas`, { icon: '⚠️', style: { background: 'var(--yellow-bg)', color: 'var(--yellow)' } });
+      if (res.data.errores?.length > 0) toast.error(`✗ ${res.data.errores.length} órdenes con error`);
       qc.invalidateQueries(['ordenes']);
       qc.invalidateQueries(['stats']);
       handleClose();
@@ -169,11 +208,7 @@ function ModalSubirExcel({ open, onClose }) {
     onError: (e) => toast.error(e.response?.data?.error || 'Error al confirmar'),
   });
 
-  const handleClose = () => {
-    setFile(null); setResultado(null);
-    setStep('upload'); setTecnicoId('');
-    onClose();
-  };
+  const handleClose = () => { setFile(null); setResultado(null); setStep('upload'); setTecnicoId(''); onClose(); };
 
   const handleDrop = (e) => {
     e.preventDefault(); setDragging(false);
@@ -185,8 +220,6 @@ function ModalSubirExcel({ open, onClose }) {
 
   return (
     <Modal open={open} onClose={handleClose} title="Importar órdenes desde Excel" width={isMobile ? '100%' : 680}>
-
-      {/* PASO 1 — Subir archivo */}
       {step === 'upload' && (
         <div>
           <div
@@ -196,12 +229,9 @@ function ModalSubirExcel({ open, onClose }) {
             onClick={() => document.getElementById('excel-input').click()}
             style={{
               border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border-2)'}`,
-              borderRadius: 12,
-              padding: isMobile ? '28px 16px' : '40px 24px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: dragging ? 'var(--accent-glow)' : 'var(--bg-3)',
-              transition: 'all .2s',
+              borderRadius: 12, padding: isMobile ? '28px 16px' : '40px 24px',
+              textAlign: 'center', cursor: 'pointer',
+              background: dragging ? 'var(--accent-glow)' : 'var(--bg-3)', transition: 'all .2s',
             }}>
             {subirMut.isPending ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -218,19 +248,13 @@ function ModalSubirExcel({ open, onClose }) {
               </>
             )}
           </div>
-          <input id="excel-input" type="file" accept=".xls,.xlsx"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const f = e.target.files[0];
-              if (f) { setFile(f); subirMut.mutate(f); }
-            }} />
+          <input id="excel-input" type="file" accept=".xls,.xlsx" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files[0]; if (f) { setFile(f); subirMut.mutate(f); } }} />
         </div>
       )}
 
-      {/* PASO 2 — Revisar y confirmar */}
       {step === 'review' && resultado && (
         <div>
-          {/* Resumen chips */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <div style={{ padding: '7px 12px', background: 'var(--green-bg)', borderRadius: 8, fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>
               ✓ {resultado.total} leídas
@@ -241,14 +265,16 @@ function ModalSubirExcel({ open, onClose }) {
               </div>
             )}
             <div style={{ padding: '7px 12px', background: 'var(--accent-glow)', borderRadius: 8, fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
-              📡 {resultado.ordenes.filter(o => o.esInternet).length} Internet
+              📡 {resultado.ordenes.filter(o => o.tipoOrden?.endsWith('_I')).length} Internet
             </div>
             <div style={{ padding: '7px 12px', background: 'rgba(139,92,246,0.1)', borderRadius: 8, fontSize: 12, color: '#8b5cf6', fontWeight: 600 }}>
-              📺 {resultado.ordenes.filter(o => !o.esInternet).length} Cable
+              📺 {resultado.ordenes.filter(o => o.tipoOrden?.endsWith('_C')).length} Cable
+            </div>
+            <div style={{ padding: '7px 12px', background: 'rgba(249,115,22,0.1)', borderRadius: 8, fontSize: 12, color: '#f97316', fontWeight: 600 }}>
+              📡📺 {resultado.ordenes.filter(o => o.tipoOrden?.endsWith('_D')).length} Dúo
             </div>
           </div>
 
-          {/* Errores */}
           {resultado.errores?.length > 0 && (
             <div style={{ background: 'var(--red-bg)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
               <p style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600, marginBottom: 6 }}>Filas con error (se omitirán):</p>
@@ -258,7 +284,6 @@ function ModalSubirExcel({ open, onClose }) {
             </div>
           )}
 
-          {/* Preview tabla — scroll horizontal en móvil */}
           <div style={{ maxHeight: isMobile ? 200 : 240, overflowY: 'auto', overflowX: 'auto', marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8, WebkitOverflowScrolling: 'touch' }}>
             <table style={{ width: '100%', minWidth: isMobile ? 480 : 'auto', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
@@ -286,7 +311,6 @@ function ModalSubirExcel({ open, onClose }) {
             </table>
           </div>
 
-          {/* Asignar técnico */}
           <div style={{ marginBottom: 16 }}>
             <Select label="Asignar técnico a todas (opcional)" value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}>
               <option value="">— Asignar después —</option>
@@ -309,38 +333,92 @@ function ModalSubirExcel({ open, onClose }) {
   );
 }
 
-// ── Modal: Asignar técnico ────────────────────────────────────
-function ModalAsignar({ open, onClose, orden }) {
+// ── Modal: Asignar técnico (individual o masivo) ──────────────
+function ModalAsignar({ open, onClose, orden, ordenesSeleccionadas }) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const [tecnicoId, setTecnicoId] = useState('');
-  const { data: tecnicos } = useQuery({
+
+  const esMasivo = !orden && ordenesSeleccionadas && ordenesSeleccionadas.size > 0;
+  const listaSeleccionadas = esMasivo ? Array.from(ordenesSeleccionadas.values()) : [];
+  const ids = esMasivo ? listaSeleccionadas.map(o => o.id) : orden ? [orden.id] : [];
+
+  const { data: tecnicosModal } = useQuery({
     queryKey: ['tecnicos-activos'],
     queryFn:  () => tecnicosApi.listar({ activo: true }).then(r => r.data),
     enabled:  open,
   });
-  const mut = useMutation({
-    mutationFn: () => ordenesApi.asignar(orden.id, tecnicoId),
+  const tecnicos = tecnicosModal || [];
+
+  // Mutación individual
+  const mutIndividual = useMutation({
+    mutationFn: () => ordenesApi.asignar(ids[0], tecnicoId),
     onSuccess:  () => { toast.success('Técnico asignado'); qc.invalidateQueries(['ordenes']); onClose(); },
     onError:    (e) => toast.error(e.response?.data?.error || 'Error'),
   });
+
+  // Mutación masiva: asignar una por una en paralelo
+  const mutMasivo = useMutation({
+    mutationFn: () => Promise.all(ids.map(id => ordenesApi.asignar(id, tecnicoId))),
+    onSuccess: (results) => {
+      const ok = results.filter(r => !r?.error).length;
+      toast.success(`👷 ${ok} órdenes asignadas`);
+      qc.invalidateQueries(['ordenes']);
+      qc.invalidateQueries(['stats']);
+      onClose();
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al asignar'),
+  });
+
+  const handleAsignar = () => esMasivo ? mutMasivo.mutate() : mutIndividual.mutate();
+  const isPending = mutIndividual.isPending || mutMasivo.isPending;
+
+  useEffect(() => { if (!open) setTecnicoId(''); }, [open]);
+
   return (
-    <Modal open={open} onClose={onClose} title={`Asignar técnico — #${orden?.nServicio}`} width={isMobile ? '100%' : 400}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={esMasivo ? `Asignar técnico — ${ids.length} órdenes` : `Asignar técnico — #${orden?.nServicio}`}
+      width={isMobile ? '100%' : 400}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ background: 'var(--bg-3)', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
-          <div style={{ fontWeight: 600 }}>{orden?.abonado}</div>
-          <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>{orden?.direccion}</div>
-          {orden?.referencia && <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>Ref: {orden.referencia}</div>}
-        </div>
+
+        {/* Resumen de lo que se va a asignar */}
+        {esMasivo ? (
+          <div style={{ background: 'var(--bg-3)', borderRadius: 8, padding: '10px 14px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              Se asignará el técnico a {ids.length} orden{ids.length !== 1 ? 'es' : ''}:
+            </p>
+            <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {listaSeleccionadas.map(o => (
+                <div key={o.id} style={{ fontSize: 12, color: 'var(--txt-2)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>#{o.nServicio}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.abonado}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--bg-3)', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+            <div style={{ fontWeight: 600 }}>{orden?.abonado}</div>
+            <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>{orden?.direccion}</div>
+            {orden?.referencia && <div style={{ color: 'var(--txt-3)', fontSize: 12 }}>Ref: {orden.referencia}</div>}
+          </div>
+        )}
+
         <Select label="Técnico" value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(tecnicos || []).map(t => (
             <option key={t.id} value={t.id}>{t.usuario.nombre} {t.usuario.apellido}{t.zonaAsignada ? ` (${t.zonaAsignada})` : ''}</option>
           ))}
         </Select>
+
         <div style={{ display: 'flex', gap: 10 }}>
           <Btn variant="ghost" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>Cancelar</Btn>
-          <Btn variant="primary" onClick={() => mut.mutate()} disabled={!tecnicoId} loading={mut.isPending} style={{ flex: 1, justifyContent: 'center' }}>Asignar</Btn>
+          <Btn variant="primary" onClick={handleAsignar} disabled={!tecnicoId} loading={isPending} style={{ flex: 1, justifyContent: 'center' }}>
+            {esMasivo ? `Asignar a ${ids.length} órdenes` : 'Asignar'}
+          </Btn>
         </div>
       </div>
     </Modal>
@@ -353,11 +431,44 @@ export default function OrdenesPage() {
   const [searchParams]  = useSearchParams();
   const isMobile        = useIsMobile();
   const [showExcel, setShowExcel]           = useState(false);
-  const [ordenAsignar, setOrdenAsignar]     = useState(null);
+  const [ordenAsignar, setOrdenAsignar]     = useState(null);   // asignación individual
+  const [showAsignarMasivo, setShowAsignarMasivo] = useState(false); // asignación masiva
   const [tab, setTab]                       = useState('todos');
-  const [filters, setFilters]               = useState({ estado: searchParams.get('estado') || '', search: '' });
+  const [filters, setFilters]               = useState({ estado: searchParams.get('estado') || '', search: '', tecnicoId: '' });
   const [page, setPage]                     = useState(1);
-  const [searchOpen, setSearchOpen]         = useState(false); // buscador expandible en móvil
+  const [searchOpen, setSearchOpen]         = useState(false);
+
+  // ── Selección múltiple ─────────────────────────────────────
+  // Map<id, {id, nServicio, abonado}> → persiste al cambiar búsqueda
+  const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState(new Map());
+  const seleccionados = new Set(ordenesSeleccionadas.keys());
+
+  const toggleSeleccion = (orden) => {
+    setOrdenesSeleccionadas(prev => {
+      const next = new Map(prev);
+      next.has(orden.id)
+        ? next.delete(orden.id)
+        : next.set(orden.id, { id: orden.id, nServicio: orden.nServicio, abonado: orden.abonado });
+      return next;
+    });
+  };
+
+  const toggleTodos = () => {
+    const elegibles = ordenes.filter(o => !TIPOS_SOLO_NOC.includes(o.tipoOrden));
+    const todosSeleccionados = elegibles.every(o => seleccionados.has(o.id));
+    setOrdenesSeleccionadas(prev => {
+      const next = new Map(prev);
+      if (todosSeleccionados) {
+        elegibles.forEach(o => next.delete(o.id));
+      } else {
+        elegibles.forEach(o => next.set(o.id, { id: o.id, nServicio: o.nServicio, abonado: o.abonado }));
+      }
+      return next;
+    });
+  };
+
+  // Limpiar selección solo al cambiar de tab
+  useEffect(() => { setOrdenesSeleccionadas(new Map()); }, [tab]);
 
   useEffect(() => {
     const e = searchParams.get('estado');
@@ -365,6 +476,12 @@ export default function OrdenesPage() {
   }, [searchParams]);
 
   const qc = useQueryClient();
+
+  const { data: tecnicosData } = useQuery({
+    queryKey: ['tecnicos-activos'],
+    queryFn:  () => tecnicosApi.listar({ activo: true }).then(r => r.data),
+  });
+  const tecnicos = tecnicosData || [];
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['ordenes', filters, tab, page],
@@ -374,6 +491,7 @@ export default function OrdenesPage() {
       ...(tab === 'internet' && { tipos: TIPOS_INTERNET.join(',') }),
       ...(tab === 'cable'    && { tipos: TIPOS_CABLE.join(',') }),
       ...(tab === 'duo'      && { tipos: TIPOS_DUO.join(',') }),
+      ...(filters.tecnicoId  && { tecnicoId: filters.tecnicoId }),
     }).then(r => r.data),
     refetchInterval: 30000,
   });
@@ -385,6 +503,12 @@ export default function OrdenesPage() {
 
   const ordenes = data?.data || [];
   const meta    = data?.meta;
+
+  // Derived: elegibles para selección (no son solo-NOC)
+  const elegibles = ordenes.filter(o => !TIPOS_SOLO_NOC.includes(o.tipoOrden));
+  const todosSeleccionados = elegibles.length > 0 && elegibles.every(o => seleccionados.has(o.id));
+  const algunoSeleccionado = elegibles.some(o => seleccionados.has(o.id));
+  const modoSeleccion = seleccionados.size > 0;
 
   const ESTADOS_FILTRO = [
     { value: '',                  label: 'Todos' },
@@ -408,6 +532,11 @@ export default function OrdenesPage() {
           </h1>
           <p style={{ color: 'var(--txt-3)', fontSize: 12, marginTop: 3 }}>
             {meta ? `${meta.total} órdenes` : '...'}
+            {seleccionados.size > 0 && (
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                {' '}· {seleccionados.size} seleccionada{seleccionados.size !== 1 ? 's' : ''}
+              </span>
+            )}
           </p>
         </div>
         <div className="ordenes-header-btns" style={{ display: 'flex', gap: 8 }}>
@@ -435,8 +564,7 @@ export default function OrdenesPage() {
               background:  tab === t.key ? 'var(--accent)'  : 'transparent',
               color:       tab === t.key ? '#fff'           : 'var(--txt-2)',
               borderColor: tab === t.key ? 'var(--accent)'  : 'var(--border-2)',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
+              whiteSpace: 'nowrap', flexShrink: 0,
             }}>
             {t.label}
           </button>
@@ -446,21 +574,15 @@ export default function OrdenesPage() {
       {/* Filtros */}
       <Card style={{ marginBottom: 14, padding: '10px 12px' }}>
         <div className="ordenes-filter-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-
-          {/* Buscador — en móvil se expande al tocar */}
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {searchOpen ? (
                   <div style={{ position: 'relative', flex: 1 }}>
                     <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt-3)' }} />
-                    <input
-                      autoFocus
-                      placeholder="Buscar abonado, N° orden..."
-                      value={filters.search}
+                    <input autoFocus placeholder="Buscar abonado, N° orden..." value={filters.search}
                       onChange={e => { setFilters(p => ({ ...p, search: e.target.value })); setPage(1); }}
-                      style={{ width: '100%', padding: '8px 36px 8px 30px', background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none' }}
-                    />
+                      style={{ width: '100%', padding: '8px 36px 8px 30px', background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none' }} />
                     <button onClick={() => { setSearchOpen(false); setFilters(p => ({ ...p, search: '' })); setPage(1); }}
                       style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt-3)', padding: 2 }}>
                       <X size={14} />
@@ -474,7 +596,6 @@ export default function OrdenesPage() {
                   </button>
                 )}
               </div>
-
             </div>
           ) : (
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
@@ -485,113 +606,132 @@ export default function OrdenesPage() {
             </div>
           )}
 
-          {/* Chips de estado (desktop) / Combobox (móvil) */}
-          {isMobile ? (
-            <select
-              value={filters.estado}
-              onChange={e => { setFilters(p => ({ ...p, estado: e.target.value })); setPage(1); }}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                background: 'var(--bg-3)',
-                border: '1px solid var(--border-2)',
-                borderRadius: 8,
-                color: filters.estado ? 'var(--accent)' : 'var(--txt-2)',
-                fontSize: 13,
-                fontWeight: 600,
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {ESTADOS_FILTRO.map(e => (
-                <option key={e.value} value={e.value}>{e.label}</option>
-              ))}
-            </select>
-          ) : (
-            <div className="ordenes-estado-chips" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {ESTADOS_FILTRO.map(e => (
-                <button key={e.value} onClick={() => { setFilters(p => ({ ...p, estado: e.value })); setPage(1); }}
-                  style={{
-                    padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                    cursor: 'pointer', border: '1px solid', transition: 'all .15s',
-                    background:  filters.estado === e.value ? 'var(--accent)'  : 'transparent',
-                    color:       filters.estado === e.value ? '#fff'           : 'var(--txt-3)',
-                    borderColor: filters.estado === e.value ? 'var(--accent)'  : 'var(--border-2)',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}>
-                  {e.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Select estado */}
+          <select
+            value={filters.estado}
+            onChange={e => { setFilters(p => ({ ...p, estado: e.target.value })); setPage(1); }}
+            style={{ padding: '7px 10px', background: 'var(--bg-3)', border: `1px solid ${filters.estado ? 'var(--accent)' : 'var(--border-2)'}`, borderRadius: 8, color: filters.estado ? 'var(--accent)' : 'var(--txt-2)', fontSize: 12, fontWeight: filters.estado ? 600 : 400, outline: 'none', cursor: 'pointer', fontFamily: 'inherit', minWidth: 140 }}
+          >
+            {ESTADOS_FILTRO.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+          </select>
 
-          {!isMobile && (filters.estado || filters.search) && (
-            <Btn variant="ghost" size="sm" onClick={() => { setFilters({ estado: '', search: '' }); setPage(1); }} icon={<X size={12} />}>Limpiar</Btn>
+          {/* Select técnico */}
+          <select
+            value={filters.tecnicoId}
+            onChange={e => { setFilters(p => ({ ...p, tecnicoId: e.target.value })); setPage(1); }}
+            style={{ padding: '7px 10px', background: 'var(--bg-3)', border: `1px solid ${filters.tecnicoId ? 'var(--accent)' : 'var(--border-2)'}`, borderRadius: 8, color: filters.tecnicoId ? 'var(--accent)' : 'var(--txt-2)', fontSize: 12, fontWeight: filters.tecnicoId ? 600 : 400, outline: 'none', cursor: 'pointer', fontFamily: 'inherit', minWidth: 150 }}
+          >
+            <option value="">Todos los técnicos</option>
+            {tecnicos.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.usuario.nombre} {t.usuario.apellido}
+              </option>
+            ))}
+          </select>
+
+          {(filters.estado || filters.search || filters.tecnicoId) && (
+            <Btn variant="ghost" size="sm" onClick={() => { setFilters({ estado: '', search: '', tecnicoId: '' }); setPage(1); }} icon={<X size={12} />}>Limpiar</Btn>
           )}
         </div>
       </Card>
 
-      {/* Contenido: tabla en desktop, cards en móvil */}
+      {/* Tabla / Cards */}
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         {isMobile ? (
-          /* ── Vista cards (móvil) ── */
           <div className="ordenes-card-list">
-            {isLoading ? (
-              <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
-                <Spinner size={24} />
+            {/* Botón activar modo selección en móvil */}
+            {ordenes.length > 0 && (
+              <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Checkbox
+                  checked={todosSeleccionados}
+                  indeterminate={algunoSeleccionado && !todosSeleccionados}
+                  onChange={toggleTodos}
+                />
+                <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>
+                  {modoSeleccion ? `${seleccionados.size} seleccionada${seleccionados.size !== 1 ? 's' : ''}` : 'Seleccionar todas'}
+                </span>
               </div>
+            )}
+            {isLoading ? (
+              <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><Spinner size={24} /></div>
             ) : ordenes.length === 0 ? (
               <Empty icon="📋" title="Sin órdenes" subtitle="Importa un Excel para comenzar" />
             ) : (
               ordenes.map(o => (
-                <OrdenCard
-                  key={o.id}
-                  o={o}
+                <OrdenCard key={o.id} o={o}
                   onAsignar={setOrdenAsignar}
                   onNavigate={id => navigate(`/ordenes/${id}`)}
+                  seleccionado={seleccionados.has(o.id)}
+                  onToggle={() => toggleSeleccion(o)}
+                  modoSeleccion={modoSeleccion}
                 />
               ))
             )}
           </div>
         ) : (
-          /* ── Vista tabla (desktop) ── */
-          <Table loading={isLoading} headers={['N°','Abonado','Dirección / Referencia','Servicio','Fecha','Estado','Técnico','']}>
+          <Table loading={isLoading} headers={[
+            // Header con checkbox "seleccionar todos"
+            <Checkbox
+              key="cb-all"
+              checked={todosSeleccionados}
+              indeterminate={algunoSeleccionado && !todosSeleccionados}
+              onChange={toggleTodos}
+            />,
+            'N°','Abonado','Dirección / Referencia','Servicio','Fecha','Estado','Técnico','',
+          ]}>
             {ordenes.length === 0 && !isLoading ? (
-              <tr><td colSpan={8}><Empty icon="📋" title="Sin órdenes" subtitle="Importa un Excel para comenzar" /></td></tr>
-            ) : ordenes.map(o => (
-              <Tr key={o.id} onClick={() => navigate(`/ordenes/${o.id}`)}>
-                <Td>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--accent)' }}>#{o.nServicio}</span>
-                </Td>
-                <Td>
-                  <div style={{ fontWeight: 500 }}>{o.abonado}</div>
-                  {o.dni && <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{o.dni}</div>}
-                </Td>
-                <Td style={{ maxWidth: 200 }}>
-                  <div className="truncate" style={{ fontSize: 12, color: 'var(--txt-2)' }}>{o.direccion}</div>
-                  {o.referencia && <div className="truncate" style={{ fontSize: 11, color: 'var(--txt-3)' }}>Ref: {o.referencia}</div>}
-                </Td>
-                <Td>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-                    {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
-                  </span>
-                </Td>
-                <Td style={{ fontSize: 12, color: 'var(--txt-2)', whiteSpace: 'nowrap' }}>{fmtFecha(o.fechaServicio)}</Td>
-                <Td><EstadoBadge estado={o.estado} /></Td>
-                <Td style={{ fontSize: 12, color: 'var(--txt-2)' }}>
-                  {o.tecnico ? `${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}` : <span style={{ color: 'var(--txt-3)' }}>Sin asignar</span>}
-                </Td>
-                <Td>
-                  {!o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && (
-                    <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
-                      onClick={e => { e.stopPropagation(); setOrdenAsignar(o); }}>
-                      Asignar
-                    </Btn>
-                  )}
-                </Td>
-              </Tr>
-            ))}
+              <tr><td colSpan={9}><Empty icon="📋" title="Sin órdenes" subtitle="Importa un Excel para comenzar" /></td></tr>
+            ) : ordenes.map(o => {
+              const esSoloNoc = TIPOS_SOLO_NOC.includes(o.tipoOrden);
+              const seleccionado = seleccionados.has(o.id);
+              return (
+                <Tr key={o.id}
+                  onClick={() => navigate(`/ordenes/${o.id}`)}
+                  style={{ background: seleccionado ? 'color-mix(in srgb, var(--accent) 6%, var(--bg))' : undefined }}
+                >
+                  <Td style={{ width: 36 }} onClick={e => e.stopPropagation()}>
+                    {!esSoloNoc && (
+                      <Checkbox
+                        checked={seleccionado}
+                        onChange={() => toggleSeleccion(o)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    )}
+                  </Td>
+                  <Td>
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--accent)' }}>#{o.nServicio}</span>
+                  </Td>
+                  <Td>
+                    <div style={{ fontWeight: 500 }}>{o.abonado}</div>
+                    {o.dni && <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{o.dni}</div>}
+                  </Td>
+                  <Td style={{ maxWidth: 200 }}>
+                    <div className="truncate" style={{ fontSize: 12, color: 'var(--txt-2)' }}>{o.direccion}</div>
+                    {o.referencia && <div className="truncate" style={{ fontSize: 11, color: 'var(--txt-3)' }}>Ref: {o.referencia}</div>}
+                  </Td>
+                  <Td>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
+                      {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+                    </span>
+                  </Td>
+                  <Td style={{ fontSize: 12, color: 'var(--txt-2)', whiteSpace: 'nowrap' }}>
+                    {fmtFecha(o.fechaServicio)}
+                  </Td>
+                  <Td><EstadoBadge estado={o.estado} /></Td>
+                  <Td style={{ fontSize: 12, color: 'var(--txt-2)' }}>
+                    {o.tecnico ? `${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}` : <span style={{ color: 'var(--txt-3)' }}>Sin asignar</span>}
+                  </Td>
+                  <Td>
+                    {!o.tecnico && !esSoloNoc && (
+                      <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
+                        onClick={e => { e.stopPropagation(); setOrdenAsignar(o); }}>
+                        Asignar
+                      </Btn>
+                    )}
+                  </Td>
+                </Tr>
+              );
+            })}
           </Table>
         )}
 
@@ -607,8 +747,31 @@ export default function OrdenesPage() {
         )}
       </Card>
 
+      {/* Barra flotante de selección */}
+      <BarraSeleccion
+        seleccionados={seleccionados}
+        ordenes={ordenes}
+        onAsignarMasivo={() => setShowAsignarMasivo(true)}
+        onLimpiar={() => setOrdenesSeleccionadas(new Map())}
+      />
+
       <ModalSubirExcel open={showExcel} onClose={() => setShowExcel(false)} />
-      <ModalAsignar    open={!!ordenAsignar} onClose={() => setOrdenAsignar(null)} orden={ordenAsignar || null} />
+
+      {/* Modal individual */}
+      <ModalAsignar
+        open={!!ordenAsignar && !showAsignarMasivo}
+        onClose={() => setOrdenAsignar(null)}
+        orden={ordenAsignar}
+        ordenesSeleccionadas={new Map()}
+      />
+
+      {/* Modal masivo */}
+      <ModalAsignar
+        open={showAsignarMasivo}
+        onClose={() => { setShowAsignarMasivo(false); setOrdenesSeleccionadas(new Map()); }}
+        orden={null}
+        ordenesSeleccionadas={ordenesSeleccionadas}
+      />
     </div>
   );
 }

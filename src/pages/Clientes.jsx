@@ -211,6 +211,9 @@ function ModalImportarContratos({ open, onClose }) {
             <div style={{ padding: '7px 12px', background: 'rgba(139,92,246,0.1)', borderRadius: 8, fontSize: 12, color: '#8b5cf6', fontWeight: 600 }}>
               📺 {resultado.contratos.filter(c => c.tipoServicio === 'CABLE').length} Cable
             </div>
+            <div style={{ padding: '7px 12px', background: 'rgba(249,115,22,0.1)', borderRadius: 8, fontSize: 12, color: '#f97316', fontWeight: 600 }}>
+              📡📺 {resultado.contratos.filter(c => c.tipoServicio === 'DUO').length} Dúo
+            </div>
           </div>
 
           {/* Errores */}
@@ -454,10 +457,6 @@ export default function ClientesPage() {
                     <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
                       {c.numero}
                     </span>
-              <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>·</span>
-              <span style={{ fontSize: 12, color: 'var(--txt-2)' }}>
-              📡📺 {resultado.contratos.filter(c => c.tipoServicio === 'DUO').length} Dúo
-              </span>
                   </Td>
                   <Td>
                     <div style={{ fontWeight: 500 }}>{c.abonado}</div>
