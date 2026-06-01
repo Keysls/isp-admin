@@ -542,6 +542,7 @@ export default function MapaPage() {
                   <option value="">Todos los servicios</option>
                   <option value="internet">Solo Internet</option>
                   <option value="cable">Solo Cable</option>
+                  <option value="duo">Solo Dúo</option>
                 </select>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Estado</div>
                 <select value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}
