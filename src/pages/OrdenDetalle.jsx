@@ -334,10 +334,22 @@ export default function OrdenDetalle() {
                     const fotoUrl = f.url.startsWith('http') ? f.url : `${BACKEND_URL}${f.url}`;
                     return (
                       <a key={f.id} href={fotoUrl} target="_blank" rel="noreferrer">
-                        <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-3)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                        <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-3)', border: '1px solid var(--border)', overflow: 'hidden', position: 'relative' }}>
                           <img src={fotoUrl} alt={f.tipo}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={e => { e.target.style.display = 'none'; }}/>
+                            onError={e => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}/>
+                          <div style={{
+                            display: 'none', position: 'absolute', inset: 0,
+                            alignItems: 'center', justifyContent: 'center',
+                            flexDirection: 'column', gap: 3,
+                            background: 'var(--bg-3)',
+                          }}>
+                            <span style={{ fontSize: 18 }}>📷</span>
+                            <span style={{ fontSize: 9, color: 'var(--txt-3)', textAlign: 'center', padding: '0 4px' }}>{f.tipo}</span>
+                          </div>
                         </div>
                       </a>
                     );
@@ -413,9 +425,10 @@ export default function OrdenDetalle() {
               <FichaSeccion
                 titulo="TÉCNICO"
                 campos={[
-                  ['Técnico',  `${orden.tecnico.usuario.nombre} ${orden.tecnico.usuario.apellido}`],
-                  ['Teléfono', orden.tecnico.usuario.telefono],
-                  ['Zona',     orden.tecnico.zonaAsignada],
+                  ['Técnico',      `${orden.tecnico.usuario.nombre} ${orden.tecnico.usuario.apellido}`],
+                  ['Teléfono',     orden.tecnico.usuario.telefono],
+                  ['Zona',         orden.tecnico.zonaAsignada],
+                  ['Observación',  inst.observaciones],
                 ]}
               />
             )}
