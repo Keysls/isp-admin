@@ -2,25 +2,22 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Contact, Users,
-  BarChart2, Map, Package, Recycle, ShieldCheck,
-  Calendar,
+  BarChart2, Map, Package, Calendar,
 } from 'lucide-react';
 
 const NAV = [
-  { to: '/',            label: 'Dashboard',   icon: LayoutDashboard },
-  { to: '/ordenes',     label: 'Órdenes',     icon: ClipboardList   },
-  { to: '/programar',   label: 'Programar',   icon: Calendar        },
-  { to: '/clientes',    label: 'Clientes',    icon: Contact         },
-  { to: '/mapa',        label: 'Mapa',        icon: Map             },
-  { to: '/tecnicos',    label: 'Técnicos',    icon: Users           },
-  { to: '/reportes',    label: 'Reportes',    icon: BarChart2       },
+  { to: '/',          label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/ordenes',   label: 'Órdenes',   icon: ClipboardList   },
+  { to: '/clientes',  label: 'Clientes',  icon: Contact         },
+  { to: '/mapa',      label: 'Mapa',      icon: Map             },
+  { to: '/tecnicos',  label: 'Técnicos',  icon: Users           },
+  { to: '/reportes',  label: 'Reportes',  icon: BarChart2       },
 ];
 
 const NAV_ALMACEN = [
-  { to: '/almacen',            label: 'Dashboard',       icon: LayoutDashboard },
-  { to: '/almacen/inventario', label: 'Inventario',      icon: Package         },
-  { to: '/almacen/recicladas', label: 'ONUs Recicladas', icon: Recycle         },
-  { to: '/almacen/auditoria',  label: 'Auditoría',       icon: ShieldCheck     },
+  { to: '/almacen',            label: 'Dashboard',  icon: LayoutDashboard },
+  { to: '/almacen/inventario', label: 'Inventario', icon: Package         },
+  { to: '/almacen/reportes',   label: 'Reportes',   icon: BarChart2       },
 ];
 
 const S = {

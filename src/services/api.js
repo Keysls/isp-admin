@@ -94,6 +94,38 @@ export const puntosRedApi = {
   }),
 };
 
+// ─── Inventario ────────────────────────────────────────────────
+ 
+export const productosApi = {
+  listar:       (params)    => api.get('/productos', { params }),
+  categorias:   ()          => api.get('/productos/categorias'),
+  crear:        (data)      => api.post('/productos', data),
+  actualizar:   (id, data)  => api.put(`/productos/${id}`, data),
+  stockPorSede: (sedeId)    => api.get(`/productos/stock-sede/${sedeId}`),
+  entrada:      (data)      => api.post('/productos/entrada', data),
+};
+ 
+export const stockApi = {
+  listar:                 (params)         => api.get('/stock', { params }),
+  stats:                  (params)         => api.get('/stock/stats', { params }),
+  auditoria:              (params)         => api.get('/stock/auditoria', { params }),
+  entrada:                (data)           => api.post('/stock/entrada', data),
+  salidaMultiple:         (data)           => api.post('/stock/salida-multiple', data),
+  salidaDirecta:          (data)           => api.post('/stock/salida-directa', data),
+  asignarCompleto:        (data)           => api.post('/stock/asignar-completo', data),
+  listarEnviosPendientes: ({ sedeId })     => api.get('/stock/envios/pendientes', { params: { sedeId } }),
+  listarEnviosOrigen:     ({ sedeId })     => api.get('/stock/envios/origen', { params: { sedeId } }),
+  confirmarEnvio:         (id)             => api.post(`/stock/envios/${id}/confirmar`),
+  cancelarEnvio:          (id, { motivo }) => api.post(`/stock/envios/${id}/cancelar`, { motivo }),
+};
+ 
+export const onusApi = {
+  listar:          (params)    => api.get('/onus', { params }),
+  disponibles:     (params)    => api.get('/onus', { params: { ...params, solo_disponibles: true } }),
+  crear:           (data)      => api.post('/onus', data),
+  actualizarCodigo:(id, data)  => api.patch(`/onus/${id}/codigo`, data),
+};
+ 
 
 
 export default api;

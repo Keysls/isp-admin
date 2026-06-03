@@ -4,17 +4,17 @@ import { ChevronDown, LogOut, UserCircle, Menu, PanelLeft, Bell, BellOff } from 
 import { useAuthStore } from '../../store/auth.store';
 
 const TITULOS = {
-  '/':                   'Dashboard',
-  '/ordenes':            'Órdenes',
-  '/clientes':           'Clientes',
-  '/mapa':               'Mapa de Red',
-  '/tecnicos':           'Técnicos',
-  '/reportes':           'Reportes',
-  '/perfil':             'Mi Perfil',
-  '/almacen':            'Almacén · Dashboard',
-  '/almacen/inventario': 'Almacén · Inventario',
-  '/almacen/recicladas': 'Almacén · ONUs Recicladas',
-  '/almacen/auditoria':  'Almacén · Auditoría',
+  '/':                    'Dashboard',
+  '/ordenes':             'Órdenes',
+  '/clientes':            'Clientes',
+  '/mapa':                'Mapa de Red',
+  '/tecnicos':            'Técnicos',
+  '/reportes':            'Reportes',
+  '/perfil':              'Mi Perfil',
+  '/programar':           'Programar',
+  '/almacen':             'Almacén · Dashboard',
+  '/almacen/inventario':  'Almacén · Inventario',
+  '/almacen/reportes':    'Almacén · Reportes',
 };
 
 function tituloDeRuta(pathname) {
@@ -137,7 +137,6 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid #EAF1F8' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1B2A' }}>Notificaciones</span>
                 </div>
-
                 {notificaciones.length === 0 ? (
                   <div style={{ padding: '32px 20px', textAlign: 'center', color: '#8AAABB' }}>
                     <BellOff size={26} style={{ opacity: 0.5 }}/>
