@@ -319,26 +319,22 @@ export default function ClientesPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Filtro Internet / Cable */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[
-              { key: '',         label: 'Todos'    },
-              { key: 'INTERNET', label: '📡 Internet' },
-              { key: 'CABLE',    label: '📺 Cable'    },
-              { key: 'DUO',      label: '📡📺 Dúo'   },
-            ].map(t => (
-              <button key={t.key} onClick={() => setTipoServicio(t.key)}
-                style={{
-                  padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', border: '1px solid', transition: 'all .15s',
-                  whiteSpace: 'nowrap',
-                  background:  tipoServicio === t.key ? 'var(--accent)' : 'transparent',
-                  color:       tipoServicio === t.key ? '#fff'          : 'var(--txt-3)',
-                  borderColor: tipoServicio === t.key ? 'var(--accent)' : 'var(--border-2)',
-                }}>
-                {isMobile ? t.label.replace('📡 ', '').replace('📺 ', '') : t.label}
-              </button>
-            ))}
-          </div>
+          <select
+            value={tipoServicio}
+            onChange={e => setTipoServicio(e.target.value)}
+            style={{
+              padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', border: '1px solid',
+              background: tipoServicio ? 'var(--accent)' : 'transparent',
+              color:      tipoServicio ? '#fff'          : 'var(--txt-3)',
+              borderColor: tipoServicio ? 'var(--accent)' : 'var(--border-2)',
+              outline: 'none', fontFamily: 'inherit',
+            }}>
+            <option value="">Todos</option>
+            <option value="INTERNET">📡 Internet</option>
+            <option value="CABLE">📺 Cable</option>
+            <option value="DUO">📡📺 Dúo</option>
+          </select>
           <Btn variant="primary" size="sm" onClick={() => setShowImport(true)} icon={<Upload size={13} />}>
             {isMobile ? 'Importar' : 'Importar Excel'}
           </Btn>

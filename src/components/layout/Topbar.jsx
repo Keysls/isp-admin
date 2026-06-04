@@ -1,7 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, UserCircle, Menu, PanelLeft, Bell, BellOff } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
+
+const TOPBAR_CSS = `
+  @media (max-width: 1080px) {
+    .topbar-username { display: none !important; }
+    .topbar-notis-panel { right: -8px !important; width: 280px !important; }
+  }
+`;
+if (typeof document !== 'undefined' && !document.getElementById('topbar-responsive-css')) {
+  const s = document.createElement('style');
+  s.id = 'topbar-responsive-css';
+  s.textContent = TOPBAR_CSS;
+  document.head.appendChild(s);
+}
 
 const TITULOS = {
   '/':                    'Dashboard',
@@ -127,7 +140,7 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
             <>
               <div onClick={() => setShowNotis(false)}
                 style={{ position: 'fixed', inset: 0, zIndex: 998 }}/>
-              <div style={{
+              <div className="topbar-notis-panel" style={{
                 position: 'absolute', right: 0, top: 'calc(100% + 8px)',
                 width: 300, background: '#FFFFFF',
                 border: '1px solid #E2ECF4', borderRadius: 12,
@@ -198,7 +211,7 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
             }}>
               {iniciales || '?'}
             </div>
-            <div style={{ textAlign: 'left', lineHeight: 1.3 }}>
+            <div className="topbar-username" style={{ textAlign: 'left', lineHeight: 1.3 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#0D1B2A' }}>
                 {usuario?.nombre} {usuario?.apellido}
               </div>

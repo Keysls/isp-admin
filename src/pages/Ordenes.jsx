@@ -8,7 +8,7 @@ import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Table, Tr, Td, Btn, Modal, Input, Select, Spinner, Empty, TimerBadge } from '../components/ui';
 import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, TIPOS_DUO, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
 
-function useIsMobile(breakpoint = 640) {
+function useIsMobile(breakpoint = 1081) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < breakpoint);
@@ -19,7 +19,7 @@ function useIsMobile(breakpoint = 640) {
 }
 
 const MOBILE_STYLES = `
-  @media (max-width: 639px) {
+  @media (max-width: 1080px) {
     .ordenes-header        { flex-direction: column; gap: 12px; }
     .ordenes-header-btns   { display: flex; gap: 6px; width: 100%; }
     .ordenes-header-btns > * { flex: 1; justify-content: center; }
@@ -33,7 +33,11 @@ const MOBILE_STYLES = `
     .ordenes-pagination    { flex-direction: column; align-items: stretch; gap: 8px; text-align: center; }
     .ordenes-pagination-btns { display: flex; gap: 6px; }
     .ordenes-pagination-btns > * { flex: 1; justify-content: center; }
+    .ordenes-filter-row select { width: 100% !important; min-width: unset !important; }
+    .ordenes-tabs-select { display: block !important; width: 100%; }
+    .ordenes-tabs        { display: none !important; }
   }
+  .ordenes-tabs-select { display: none; }
 `;
 
 function InjectStyles() {
@@ -570,6 +574,19 @@ export default function OrdenesPage() {
           </button>
         ))}
       </div>
+
+      {/* Tabs select — solo móvil */}
+      <select
+        className="ordenes-tabs-select"
+        value={tab}
+        onChange={e => { setTab(e.target.value); setPage(1); }}
+        style={{ padding: '9px 12px', marginBottom: 14, background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+      >
+        <option value="todos">Todos</option>
+        <option value="internet">📡 Internet</option>
+        <option value="cable">📺 Cable</option>
+        <option value="duo">📡📺 Dúo</option>
+      </select>
 
       {/* Filtros */}
       <Card style={{ marginBottom: 14, padding: '10px 12px' }}>

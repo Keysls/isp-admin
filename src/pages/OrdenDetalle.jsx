@@ -60,6 +60,27 @@ function FichaSeccion({ titulo, campos }) {
   );
 }
 
+const CSS = `
+  @media (max-width: 1080px) {
+    .od-header-btns { flex-direction: column !important; width: 100%; }
+    .od-header-btns select { width: 100% !important; }
+    .od-header-btns button { width: 100% !important; justify-content: center; }
+    .od-grid-main   { grid-template-columns: 1fr !important; }
+    .od-grid-inst   { grid-template-columns: 1fr 1fr !important; }
+    .od-inst-fotos  { grid-column: span 2 !important; }
+  }
+  @media (max-width: 600px) {
+    .od-grid-inst  { grid-template-columns: 1fr !important; }
+    .od-inst-fotos { grid-column: span 1 !important; }
+  }
+`;
+if (typeof document !== 'undefined' && !document.getElementById('od-responsive-css')) {
+  const s = document.createElement('style');
+  s.id = 'od-responsive-css';
+  s.textContent = CSS;
+  document.head.appendChild(s);
+}
+
 export default function OrdenDetalle() {
   const { id }   = useParams();
   const navigate = useNavigate();
@@ -105,7 +126,7 @@ export default function OrdenDetalle() {
   const enCurso    = orden.estado === 'ACEPTADA' || orden.estado === 'EN_PROCESO';
 
   return (
-    <div style={{ padding: 28, maxWidth: 1000, margin: '0 auto' }} className="animate-fade">
+    <div style={{ padding: 'clamp(16px, 4vw, 28px)', maxWidth: 1000, margin: '0 auto' }} className="animate-fade">
 
       <button onClick={() => navigate('/ordenes')}
         style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--txt-3)', fontSize: 12, marginBottom: 20 }}
@@ -130,7 +151,7 @@ export default function OrdenDetalle() {
           </div>
           <p style={{ color: 'var(--txt-3)', fontSize: 12 }}>Creada {fmtFechaHora(orden.createdAt)}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="od-header-btns" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={orden.estado} onChange={e => estadoMut.mutate(e.target.value)}
             style={{ padding: '7px 12px', background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 8, color: 'var(--txt)', fontSize: 12, outline: 'none' }}>
             {['PENDIENTE_NOC','PENDIENTE_TECNICO','ACEPTADA','EN_PROCESO','COMPLETADA','CANCELADA','REPROGRAMADA'].map(s => (
@@ -178,7 +199,7 @@ export default function OrdenDetalle() {
         </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="od-grid-main" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
         {/* Datos del cliente */}
         <Card>
@@ -288,7 +309,7 @@ export default function OrdenDetalle() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: tieneInternet ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' }}>
+            <div className="od-grid-inst" style={{ display: 'grid', gridTemplateColumns: tieneInternet ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' }}>
 
               {/* GPS */}
               <div style={{ padding: '14px 16px', borderRight: '1px solid var(--border)' }}>
@@ -325,7 +346,7 @@ export default function OrdenDetalle() {
               )}
 
               {/* Fotos */}
-              <div style={{ padding: '14px 16px', gridColumn: 'span 2' }}>
+              <div className="od-inst-fotos" style={{ padding: '14px 16px', gridColumn: 'span 2' }}>
                 <div style={{ fontSize: 10, color: 'var(--txt-3)', letterSpacing: '0.06em', marginBottom: 8 }}>
                   FOTOS ({inst.fotos?.length || 0})
                 </div>

@@ -5,6 +5,38 @@ import { stockApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner } from '../../components/ui';
 
+// ─── CSS responsivo ───────────────────────────────────────────
+const CSS = `
+  .arep-stats   { flex-wrap: wrap; }
+  .arep-filters { flex-wrap: wrap; }
+  .arep-row     { display: grid; grid-template-columns: 2fr 90px 70px 1.5fr; }
+  .arep-cards   { display: none; }
+
+  @media (max-width: 1080px) {
+    .arep-stats > button { flex: 1 1 calc(50% - 5px) !important; min-width: unset !important; }
+    .arep-filters { flex-direction: column !important; }
+    .arep-filters > * { width: 100% !important; min-width: unset !important; }
+    .arep-row   { display: none !important; }
+    .arep-cards { display: flex !important; flex-direction: column; gap: 6px; padding: 8px 12px; }
+  }
+
+  .arep-card {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+`;
+if (typeof document !== 'undefined' && !document.getElementById('arep-responsive-css')) {
+  const s = document.createElement('style');
+  s.id = 'arep-responsive-css';
+  s.textContent = CSS;
+  document.head.appendChild(s);
+}
+
 function useMiSede() {
   const usuario = useAuthStore(s => s.usuario);
   return { sedeId: usuario?.sedeId, sedeNombre: usuario?.sede?.nombre || 'Mi sede' };
@@ -19,7 +51,7 @@ const TIPOS = {
   consumo:        { label: 'Consumo',        color: '#993556', bg: '#fbeaf0', border: '#f4c0d1' },
 };
 
-function Badge({ tipo }) {
+function TipoBadge({ tipo }) {
   const meta = TIPOS[tipo] || { label: tipo, color: '#5f5e5a', bg: '#f1efe8', border: '#d3d1c7' };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: meta.bg, color: meta.color, border: `0.5px solid ${meta.border}` }}>
@@ -99,20 +131,20 @@ export default function AdminAlmacenReportes() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+      {/* Stat cards — en móvil grid 2 cols */}
+      <div className="arep-stats" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         {Object.entries(TIPOS).map(([tipo]) => (
-          <StatCard key={tipo} tipo={tipo} count={counts[tipo] || 0} active={activeTipo === tipo}
-            onClick={() => setActiveTipo(t => t === tipo ? '' : tipo)} />
+          <StatCard key={tipo} tipo={tipo} count={counts[tipo] || 0}
+            active={activeTipo === tipo} onClick={() => setActiveTipo(t => t === tipo ? '' : tipo)} />
         ))}
       </div>
 
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Filtros — en móvil columna */}
+      <div className="arep-filters" style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt-3)' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto, comentario..."
-            style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none' }} />
+            style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <select value={activeTipo} onChange={e => setActiveTipo(e.target.value)}
           style={{ height: 36, padding: '0 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', minWidth: 160 }}>
@@ -139,20 +171,38 @@ export default function AdminAlmacenReportes() {
             {Object.entries(porTipo).map(([tipo, rows]) => (
               <Card key={tipo} style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
-                  <Badge tipo={tipo} />
+                  <TipoBadge tipo={tipo} />
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--txt-3)' }}>{rows.length} ítem{rows.length !== 1 ? 's' : ''}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 90px 70px 1.5fr', gap: 12, padding: '7px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+
+                {/* Desktop: grid */}
+                <div className="arep-row" style={{ gap: 12, padding: '7px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                   <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Comentario</span>
                 </div>
                 {rows.map((m, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 90px 70px 1.5fr', gap: 12, padding: '11px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
+                  <div key={i} className="arep-row" style={{ gap: 12, padding: '11px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                     <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
                     <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
                     <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{m.comentario || m.motivo || '—'}</span>
                   </div>
                 ))}
+
+                {/* Móvil: cards */}
+                <div className="arep-cards">
+                  {rows.map((m, i) => (
+                    <div key={i} className="arep-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
+                      {(m.comentario || m.motivo) && (
+                        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{m.comentario || m.motivo}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </Card>
             ))}
           </div>

@@ -173,12 +173,12 @@ export default function ReportesPage() {
     <div style={{ padding: 28 }} className="animate-fade">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Reportes</h1>
           <p style={{ color: 'var(--txt-3)', fontSize: 12, marginTop: 3 }}>Resumen general del sistema · {total} órdenes</p>
         </div>
-        <Btn variant="primary" icon={<Download size={13}/>} onClick={exportarExcel} disabled={!total || exportando} loading={exportando}>
+        <Btn variant="primary" icon={<Download size={13}/>} onClick={exportarExcel} disabled={!total || exportando} loading={exportando} style={{ width: '100%', maxWidth: 200, justifyContent: 'center' }}>
           {exportando ? 'Generando...' : 'Exportar Excel'}
         </Btn>
       </div>
@@ -193,7 +193,7 @@ export default function ReportesPage() {
         <StatBox label="Técnicos activos" value={tecnicosActivos}                            color="var(--purple)" icon={Users}       />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
 
         <Card>
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, marginBottom: 18, color: 'var(--txt-2)' }}>

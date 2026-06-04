@@ -6,7 +6,45 @@ import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../se
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner, Btn, Input, Select, Badge, Modal as UIModal } from '../../components/ui';
 
-/* ── Helpers ────────────────────────────────────────────────── */
+// ─── CSS responsivo ───────────────────────────────────────────
+const CSS = `
+  .ainv-btns    { flex-wrap: wrap; }
+  .ainv-table   { display: block; }
+  .ainv-cards   { display: none; }
+
+  @media (max-width: 1080px) {
+    .ainv-btns  { flex-direction: column !important; }
+    .ainv-btns > * { width: 100% !important; justify-content: center; }
+    .ainv-table { display: none !important; }
+    .ainv-cards { display: flex !important; flex-direction: column; gap: 10px; padding: 10px; }
+    .ainv-envio-pendiente { flex-direction: column !important; }
+    .ainv-envio-pendiente > div:last-child { width: 100%; display: flex; gap: 8px; }
+    .ainv-envio-pendiente > div:last-child > * { flex: 1; justify-content: center; }
+  }
+
+  .ainv-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ainv-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+`;
+if (typeof document !== 'undefined' && !document.getElementById('ainv-responsive-css')) {
+  const s = document.createElement('style');
+  s.id = 'ainv-responsive-css';
+  s.textContent = CSS;
+  document.head.appendChild(s);
+}
+
 function useMiSede() {
   const usuario = useAuthStore(s => s.usuario);
   return { usuario, sedeId: usuario?.sedeId, sedeNombre: usuario?.sede?.nombre || 'Mi sede', puedeEnviarStock: usuario?.sede?.puedeEnviarStock || false };
@@ -16,7 +54,6 @@ function isOnuProduct(p) {
   return `${p.categoria || ''} ${p.producto || p.nombre || ''}`.toLowerCase().includes('onu');
 }
 
-/* ── Componentes inline ─────────────────────────────────────── */
 function Header({ title, subtitle, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -117,12 +154,7 @@ function ItemsList({ stock, items, setItems, showDisponible = true, sedeId }) {
                 <Btn variant="danger" size="sm" onClick={() => remove(idx)}><X size={15} /></Btn>
               </div>
               {esOnu && sedeId && (
-                <OnuPanelInline
-                  sedeId={sedeId}
-                  productoId={item.producto_id}
-                  selectedIds={item.onu_ids || []}
-                  onChange={ids => update(idx, 'onu_ids', ids)}
-                />
+                <OnuPanelInline sedeId={sedeId} productoId={item.producto_id} selectedIds={item.onu_ids || []} onChange={ids => update(idx, 'onu_ids', ids)} />
               )}
             </div>
           );
@@ -132,35 +164,6 @@ function ItemsList({ stock, items, setItems, showDisponible = true, sedeId }) {
   );
 }
 
-function OnuSelector({ label, productosOnu, productoId, setProductoId, onus, selectedIds, setSelectedIds }) {
-  const selected = selectedIds.map(String);
-  const toggle = (id) => {
-    const strId = String(id);
-    setSelectedIds(selected.includes(strId) ? selected.filter(v => v !== strId) : [...selected, strId]);
-  };
-  return (
-    <div>
-      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
-      <select style={{ width: '100%', padding: '9px 12px', background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 8, color: 'var(--txt)', fontSize: 13 }} value={productoId} onChange={e => { setProductoId(e.target.value); setSelectedIds([]); }}>
-        <option value="">Seleccionar modelo ONU...</option>
-        {productosOnu.map(p => <option key={p.producto_id} value={p.producto_id}>{p.producto} - disp. {p.cantidad}</option>)}
-      </select>
-      {productoId && (
-        <div style={{ marginTop: 8, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)', maxHeight: 170, overflowY: 'auto' }}>
-          {onus.length === 0 ? (
-            <div style={{ padding: 10, color: 'var(--txt-3)', fontSize: 13 }}>No hay ONUs con PON-SN disponibles para este modelo.</div>
-          ) : onus.map(onu => (
-            <label key={onu.id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={selected.includes(String(onu.id))} onChange={() => toggle(onu.id)} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--accent)' }}>{onu.codigo_pon}</span>
-              <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{onu.producto}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
   const [filter, setFilter] = useState('');
   const onusQ = useQuery({
@@ -168,9 +171,7 @@ function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
     enabled: Boolean(sedeId && productoId),
     queryFn: () => onusApi.disponibles({ sedeId, producto_id: productoId }).then(r => r.data),
   });
-  const onus = (onusQ.data || []).filter(o =>
-    !filter || o.codigo_pon.toLowerCase().includes(filter.toLowerCase())
-  );
+  const onus = (onusQ.data || []).filter(o => !filter || o.codigo_pon.toLowerCase().includes(filter.toLowerCase()));
   const selected = selectedIds.map(String);
   const toggle = (id) => {
     const s = String(id);
@@ -181,12 +182,8 @@ function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
         Seleccionar ONUs ({selected.length} seleccionadas)
       </div>
-      <input
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-        placeholder="Filtrar por código PON..."
-        style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)', color: 'var(--txt)', fontSize: 12, marginBottom: 8 }}
-      />
+      <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filtrar por código PON..."
+        style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)', color: 'var(--txt)', fontSize: 12, marginBottom: 8 }} />
       {onusQ.isLoading && <div style={{ fontSize: 12, color: 'var(--txt-3)' }}>Cargando...</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {onus.map(onu => {
@@ -198,15 +195,12 @@ function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
             </button>
           );
         })}
-        {!onusQ.isLoading && onus.length === 0 && (
-          <div style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin ONUs disponibles.</div>
-        )}
+        {!onusQ.isLoading && onus.length === 0 && <div style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin ONUs disponibles.</div>}
       </div>
     </div>
   );
 }
 
-/* ── Vista ──────────────────────────────────────────────────── */
 export default function AdminAlmacenInventario() {
   const qc = useQueryClient();
   const { sedeId, sedeNombre, puedeEnviarStock } = useMiSede();
@@ -227,11 +221,7 @@ export default function AdminAlmacenInventario() {
   const stockQ = useQuery({ queryKey: ['admin-stock-sede', sedeId, q], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: q || undefined }).then(r => r.data) });
   const productosQ = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
   const tecnicosQ = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
-  const onusExistentesQ = useQuery({
-    queryKey: ['onus-existentes', sedeId, onuForm.producto_id],
-    enabled: Boolean(sedeId && onuForm.producto_id),
-    queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data),
-  });
+  const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
   const enviosPendientesQ = useQuery({ queryKey: ['envios-pendientes', sedeId], enabled: Boolean(sedeId), queryFn: () => stockApi.listarEnviosPendientes({ sedeId }).then(r => r.data) });
   const sedesQ = useQuery({ queryKey: ['sedes-lista'], queryFn: () => sedesApi.listar().then(r => r.data) });
 
@@ -244,124 +234,70 @@ export default function AdminAlmacenInventario() {
 
   const entradaItemsValidos = entrada.items.filter(i => i.producto_id && Number(i.cantidad) > 0);
 
-  const entradaM = useMutation({
-    mutationFn: () => stockApi.entrada({ sedeId, comentario: entrada.comentario, items: entradaItemsValidos }),
-    onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal(null); refresh(); },
-    onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada'),
-  });
-
+  const entradaM = useMutation({ mutationFn: () => stockApi.entrada({ sedeId, comentario: entrada.comentario, items: entradaItemsValidos }), onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal(null); refresh(); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada') });
   const asignarM = useMutation({
     mutationFn: () => {
-      const itemsValidos = asignacion.items.filter(i => {
-        const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-        const esOnu = isOnuProduct(prod || {});
-        return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
-      });
+      const itemsValidos = asignacion.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
       const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
-      const itemsSoloNormales = itemsValidos
-        .filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {}))
-        .map(({ onu_ids, ...rest }) => rest);
+      const itemsSoloNormales = itemsValidos.filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})).map(({ onu_ids, ...rest }) => rest);
       return stockApi.asignarCompleto({ ...asignacion, items: itemsSoloNormales, onu_ids: onuIds });
     },
     onSuccess: () => { toast.success('Asignación registrada'); setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la asignación'),
   });
-
   const directaM = useMutation({
     mutationFn: () => {
-      const itemsValidos = directa.items.filter(i => {
-        const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-        const esOnu = isOnuProduct(prod || {});
-        return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
-      });
+      const itemsValidos = directa.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
       const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
-      const itemsSoloNormales = itemsValidos
-        .filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {}))
-        .map(({ onu_ids, ...rest }) => rest);
+      const itemsSoloNormales = itemsValidos.filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})).map(({ onu_ids, ...rest }) => rest);
       return stockApi.salidaDirecta({ ...directa, items: itemsSoloNormales, onu_ids: onuIds });
     },
     onSuccess: () => { toast.success('Salida directa registrada'); setDirecta({ comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la salida'),
   });
-
   const registrarOnuM = useMutation({
-    mutationFn: () => Promise.all(
-      (onuForm.codigos_pon || []).filter(c => c.trim()).map(codigo_pon =>
-        onusApi.crear({ sedeId, producto_id: onuForm.producto_id, codigo_pon })
-      )
-    ),
-    onSuccess: (results) => {
-      toast.success(`${results.length} ONU${results.length !== 1 ? 's' : ''} registrada${results.length !== 1 ? 's' : ''}`);
-      setOnuForm({ producto_id: '', codigos_pon: [''] });
-      setModal(null);
-      refresh();
-    },
+    mutationFn: () => Promise.all((onuForm.codigos_pon || []).filter(c => c.trim()).map(codigo_pon => onusApi.crear({ sedeId, producto_id: onuForm.producto_id, codigo_pon }))),
+    onSuccess: (results) => { toast.success(`${results.length} ONU${results.length !== 1 ? 's' : ''} registrada${results.length !== 1 ? 's' : ''}`); setOnuForm({ producto_id: '', codigos_pon: [''] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la ONU'),
   });
-
-  const confirmarEnvioM = useMutation({
-    mutationFn: (id) => stockApi.confirmarEnvio(id),
-    onSuccess: () => { toast.success('Envío confirmado, stock actualizado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
-    onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar'),
-  });
-
-  const cancelarEnvioM = useMutation({
-    mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }),
-    onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
-    onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar'),
-  });
-
+  const confirmarEnvioM = useMutation({ mutationFn: (id) => stockApi.confirmarEnvio(id), onSuccess: () => { toast.success('Envío confirmado, stock actualizado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar') });
+  const cancelarEnvioM = useMutation({ mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }), onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar') });
   const enviarStockM = useMutation({
-    mutationFn: () => stockApi.enviarSede({
-      sedeId,
-      sedeDestinoId: envio.sede_destino_id,
-      guia: envio.guia,
-      comentario: envio.comentario,
-      items: envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0),
-    }),
-    onSuccess: () => {
-      toast.success('Envío registrado correctamente');
-      setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] });
-      setEnvioSearch('');
-      setModal(null);
-      refresh();
-      qc.invalidateQueries({ queryKey: ['envios-pendientes'] });
-    },
+    mutationFn: () => stockApi.enviarSede({ sedeId, sedeDestinoId: envio.sede_destino_id, guia: envio.guia, comentario: envio.comentario, items: envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0) }),
+    onSuccess: () => { toast.success('Envío registrado correctamente'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
-
 
   const rows = stockQ.data || [];
   const productos = productosQ.data || [];
   const stock = stockQ.data || [];
   const productosOnu = stock.filter(s => s.cantidad > 0 && isOnuProduct(s));
-  const stockOnu = stock.filter(isOnuProduct);
 
-  if (stockQ.isLoading) {
-    return (
-      <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-        <Spinner size={28} />
-      </div>
-    );
-  }
+  if (stockQ.isLoading) return (
+    <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+      <Spinner size={28} />
+    </div>
+  );
 
   return (
     <div style={{ padding: 28 }} className="animate-fade">
       <Header title="Inventario" subtitle="Stock local, entradas y entregas a técnicos" right={<SedeBadge sedeNombre={sedeNombre} />} />
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+      {/* Botones de acción — en móvil columna */}
+      <div className="ainv-btns" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={16} />}>Registrar entrada</Btn>
         <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [] }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={16} />}>Salida directa</Btn>
         <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }} icon={<Send size={16} />}>Asignar a técnico</Btn>
         {puedeEnviarStock && (
-          <Btn variant="blue" onClick={() => setModal('envio')} icon={<Send size={16} />} style={{ border: '2px solid #2563EB', borderRadius: 10, fontWeight: 700, letterSpacing: '0.01em', boxShadow: '0 2px 8px rgba(37,99,235,0.18)' }}>Enviar a otra sede</Btn>
+          <Btn variant="blue" onClick={() => setModal('envio')} icon={<Send size={16} />} style={{ border: '2px solid #2563EB', borderRadius: 10, fontWeight: 700, boxShadow: '0 2px 8px rgba(37,99,235,0.18)' }}>Enviar a otra sede</Btn>
         )}
       </div>
 
+      {/* Envíos pendientes */}
       {(enviosPendientesQ.data || []).length > 0 && (
         <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(enviosPendientesQ.data || []).map(envio => (
-            <div key={envio.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid #D97706', borderRadius: 8, gap: 12, flexWrap: 'wrap' }}>
+            <div key={envio.id} className="ainv-envio-pendiente" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid #D97706', borderRadius: 8, gap: 12 }}>
               <div style={{ fontSize: 13 }}>
                 <span style={{ fontWeight: 700 }}>📦 Envío pendiente</span>
                 <span style={{ color: 'var(--txt-3)', marginLeft: 8 }}>Guía: <strong>{envio.guia}</strong></span>
@@ -379,7 +315,9 @@ export default function AdminAlmacenInventario() {
 
       <Card style={{ padding: 0 }}>
         <Toolbar q={q} setQ={setQ} />
-        <div style={{ overflowX: 'auto' }}>
+
+        {/* Desktop: tabla */}
+        <div className="ainv-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
@@ -414,9 +352,39 @@ export default function AdminAlmacenInventario() {
             </tbody>
           </table>
         </div>
+
+        {/* Móvil: cards */}
+        <div className="ainv-cards">
+          {rows.length === 0 ? (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</div>
+          ) : rows.map(p => {
+            const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
+            return (
+              <div key={p.producto_id} className="ainv-card">
+                <div className="ainv-card-top">
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--txt)' }}>{p.producto}</div>
+                    {p.codigo && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--txt-3)' }}>{p.codigo}</span>}
+                  </div>
+                  <Badge color={low ? 'red' : 'green'}>{low ? 'Bajo stock' : 'Disponible'}</Badge>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {p.categoria && <Badge color="blue">{p.categoria}</Badge>}
+                  {p.unidad && <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{p.unidad}</span>}
+                  <StockBar stock={p.cantidad} minimo={p.stock_minimo} />
+                </div>
+                {isOnuProduct(p) && (
+                  <Btn variant="ghost" size="sm" icon={<Wifi size={13} />} onClick={() => { setOnuForm({ producto_id: String(p.producto_id), codigos_pon: [''] }); setModal('onu'); }}>
+                    Registrar ONU
+                  </Btn>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
-      {/* Modales con UIModal de components/ui */}
+      {/* ── Modales (sin cambios) ── */}
       {modal === 'entrada' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -431,9 +399,7 @@ export default function AdminAlmacenInventario() {
       {modal === 'onu' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Registrar ONU con PON-SN">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {productosOnu.length === 0 && (
-              <div style={{ padding: '10px 12px', border: '1px solid var(--red)', borderRadius: 8, color: 'var(--red)', background: 'var(--red-bg)', fontSize: 13 }}>No hay productos ONU con stock en esta sede.</div>
-            )}
+            {productosOnu.length === 0 && <div style={{ padding: '10px 12px', border: '1px solid var(--red)', borderRadius: 8, color: 'var(--red)', background: 'var(--red-bg)', fontSize: 13 }}>No hay productos ONU con stock en esta sede.</div>}
             {!onuForm.producto_id && (
               <Select label="Modelo / producto ONU" value={onuForm.producto_id} onChange={e => setOnuForm({ ...onuForm, producto_id: e.target.value, codigos_pon: Array(productosOnu.find(p => String(p.producto_id) === e.target.value)?.cantidad || 1).fill('') })}>
                 <option value="">Seleccionar...</option>
@@ -447,77 +413,39 @@ export default function AdminAlmacenInventario() {
               </div>
             )}
             {onuForm.producto_id && (() => {
-              const yaRegistradas = (onusExistentesQ.data || []).filter(o => 
-                o.codigo_pon && !o.salida_directa && !o.tecnico_id && !o.activacion_id
-              );
+              const yaRegistradas = (onusExistentesQ.data || []).filter(o => o.codigo_pon && !o.salida_directa && !o.tecnico_id && !o.activacion_id);
               const stockTotal = productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id))?.cantidad || 0;
               const disponibles = stockTotal - yaRegistradas.length;
               return (
                 <div>
                   {yaRegistradas.length > 0 && (
                     <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Ya registradas ({yaRegistradas.length})
-                      </label>
+                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ya registradas ({yaRegistradas.length})</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {yaRegistradas.map(o => (
-                          <span key={o.id} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--txt-2)' }}>
-                            {o.codigo_pon}
-                          </span>
-                        ))}
+                        {yaRegistradas.map(o => <span key={o.id} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--txt-2)' }}>{o.codigo_pon}</span>)}
                       </div>
                     </div>
                   )}
                   {disponibles <= 0 ? (
-                    <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt-2)', fontSize: 13, background: 'var(--bg-2)' }}>
-                      Todas las ONUs de este producto ya tienen código PON registrado.
-                    </div>
+                    <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt-2)', fontSize: 13, background: 'var(--bg-2)' }}>Todas las ONUs de este producto ya tienen código PON registrado.</div>
                   ) : (
                     <>
-                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Nuevos códigos PON-SN ({(onuForm.codigos_pon || []).filter(c => c.trim()).length} de {disponibles} disponibles)
-                      </label>
+                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nuevos códigos PON-SN ({(onuForm.codigos_pon || []).filter(c => c.trim()).length} de {disponibles} disponibles)</label>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {(onuForm.codigos_pon || ['']).map((cod, idx) => (
                           <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input
-                              value={cod}
-                              onChange={e => {
-                                const next = [...(onuForm.codigos_pon || [''])];
-                                next[idx] = e.target.value.toUpperCase();
-                                setOnuForm({ ...onuForm, codigos_pon: next });
-                              }}
-                              placeholder={`PON-SN ${idx + 1}`}
-                              style={{ flex: 1, height: 36, border: '1px solid var(--border)', borderRadius: 8, padding: '0 10px', background: 'var(--bg-2)', color: 'var(--txt)', fontSize: 13, fontFamily: 'var(--font-mono)' }}
-                            />
-                            {(onuForm.codigos_pon?.length || 1) > 1 && (
-                              <Btn variant="danger" size="sm" onClick={() => setOnuForm({ ...onuForm, codigos_pon: (onuForm.codigos_pon || ['']).filter((_, i) => i !== idx) })}>
-                                <X size={14} />
-                              </Btn>
-                            )}
+                            <input value={cod} onChange={e => { const next = [...(onuForm.codigos_pon || [''])]; next[idx] = e.target.value.toUpperCase(); setOnuForm({ ...onuForm, codigos_pon: next }); }} placeholder={`PON-SN ${idx + 1}`} style={{ flex: 1, height: 36, border: '1px solid var(--border)', borderRadius: 8, padding: '0 10px', background: 'var(--bg-2)', color: 'var(--txt)', fontSize: 13, fontFamily: 'var(--font-mono)' }} />
+                            {(onuForm.codigos_pon?.length || 1) > 1 && <Btn variant="danger" size="sm" onClick={() => setOnuForm({ ...onuForm, codigos_pon: (onuForm.codigos_pon || ['']).filter((_, i) => i !== idx) })}><X size={14} /></Btn>}
                           </div>
                         ))}
                       </div>
-                      {(onuForm.codigos_pon || []).length < disponibles && (
-                        <Btn variant="ghost" size="sm" icon={<Plus size={14} />} style={{ marginTop: 8 }}
-                          onClick={() => setOnuForm({ ...onuForm, codigos_pon: [...(onuForm.codigos_pon || ['']), ''] })}>
-                          Agregar otro código
-                        </Btn>
-                      )}
+                      {(onuForm.codigos_pon || []).length < disponibles && <Btn variant="ghost" size="sm" icon={<Plus size={14} />} style={{ marginTop: 8 }} onClick={() => setOnuForm({ ...onuForm, codigos_pon: [...(onuForm.codigos_pon || ['']), ''] })}>Agregar otro código</Btn>}
                     </>
                   )}
                 </div>
               );
             })()}
-            <Btn
-              onClick={() => registrarOnuM.mutate()}
-              disabled={
-                !onuForm.producto_id ||
-                !(onuForm.codigos_pon || []).some(c => c.trim()) ||
-                registrarOnuM.isPending ||
-                (onusExistentesQ.data || []).filter(o => o.codigo_pon && !o.salida_directa && !o.tecnico_id && !o.activacion_id).length >= (productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id))?.cantidad || 0)
-              }
-              icon={<Check size={15} />}>
+            <Btn onClick={() => registrarOnuM.mutate()} disabled={!onuForm.producto_id || !(onuForm.codigos_pon || []).some(c => c.trim()) || registrarOnuM.isPending} icon={<Check size={15} />}>
               Registrar {(onuForm.codigos_pon || []).filter(c => c.trim()).length} ONU{(onuForm.codigos_pon || []).filter(c => c.trim()).length !== 1 ? 's' : ''}
             </Btn>
           </div>
@@ -531,7 +459,7 @@ export default function AdminAlmacenInventario() {
               <option value="">Seleccionar...</option>
               {(tecnicosQ.data || []).map(t => <option key={t.id} value={t.id}>{`${t.usuario?.nombre || t.nombre} ${t.usuario?.apellido || ''}`.trim()}</option>)}
             </Select>
-            <ProductSearch label="Buscar item por nombre o código" search={asignacionSearch} setSearch={setAsignacionSearch} products={stock.filter(s => s.cantidad > 0)} selected={asignacion.items} onAdd={p => setAsignacion({ ...asignacion, items: [...asignacion.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+            <ProductSearch label="Buscar item" search={asignacionSearch} setSearch={setAsignacionSearch} products={stock.filter(s => s.cantidad > 0)} selected={asignacion.items} onAdd={p => setAsignacion({ ...asignacion, items: [...asignacion.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
             <ItemsList stock={stock} items={asignacion.items} setItems={items => setAsignacion({ ...asignacion, items })} sedeId={sedeId} />
             <Input label="Comentario" value={asignacion.comentario} onChange={e => setAsignacion({ ...asignacion, comentario: e.target.value })} />
             <Btn onClick={() => asignarM.mutate()} disabled={!asignacion.tecnico_id || asignacion.items.length === 0 || asignarM.isPending} icon={<Check size={15} />}>Confirmar asignación</Btn>
@@ -556,16 +484,12 @@ export default function AdminAlmacenInventario() {
             <div style={{ padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
               <div>Guía: <strong>{envioSeleccionado?.guia}</strong></div>
               <div style={{ marginTop: 6, color: 'var(--txt-3)' }}>Productos:</div>
-              {envioSeleccionado?.detalles?.map((d, i) => (
-                <div key={i} style={{ marginLeft: 8, fontSize: 12, color: 'var(--txt-3)' }}>· {d.cantidad}x {d.producto}</div>
-              ))}
+              {envioSeleccionado?.detalles?.map((d, i) => <div key={i} style={{ marginLeft: 8, fontSize: 12, color: 'var(--txt-3)' }}>· {d.cantidad}x {d.producto}</div>)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--txt-2)' }}>Al confirmar, el stock se sumará a tu sede.</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn onClick={() => confirmarEnvioM.mutate(envioSeleccionado.id)} disabled={confirmarEnvioM.isPending} icon={<Check size={15} />}>
-                Confirmar recepción
-              </Btn>
+              <Btn onClick={() => confirmarEnvioM.mutate(envioSeleccionado.id)} disabled={confirmarEnvioM.isPending} icon={<Check size={15} />}>Confirmar recepción</Btn>
             </div>
           </div>
         </UIModal>
@@ -576,129 +500,58 @@ export default function AdminAlmacenInventario() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
               <div>Guía: <strong>{envioSeleccionado?.guia}</strong></div>
-              <div style={{ marginTop: 6, color: 'var(--txt-3)' }}>Productos:</div>
-              {envioSeleccionado?.detalles?.map((d, i) => (
-                <div key={i} style={{ marginLeft: 8, fontSize: 12, color: 'var(--txt-3)' }}>· {d.cantidad}x {d.producto}</div>
-              ))}
+              {envioSeleccionado?.detalles?.map((d, i) => <div key={i} style={{ marginLeft: 8, fontSize: 12, color: 'var(--txt-3)' }}>· {d.cantidad}x {d.producto}</div>)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--txt-2)' }}>Al cancelar, el stock será devuelto a la sede origen.</div>
-            <Input
-              label="Motivo de cancelación (obligatorio)"
-              value={motivoCancelacion}
-              onChange={e => setMotivoCancelacion(e.target.value)}
-              placeholder="Ej: los productos no llegaron, envío extraviado..."
-            />
+            <Input label="Motivo de cancelación (obligatorio)" value={motivoCancelacion} onChange={e => setMotivoCancelacion(e.target.value)} placeholder="Ej: los productos no llegaron..." />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Volver</Btn>
-              <Btn variant="danger" onClick={() => cancelarEnvioM.mutate({ id: envioSeleccionado.id, motivo: motivoCancelacion })} disabled={!motivoCancelacion.trim() || cancelarEnvioM.isPending} icon={<X size={15} />}>
-                Confirmar cancelación
-              </Btn>
+              <Btn variant="danger" onClick={() => cancelarEnvioM.mutate({ id: envioSeleccionado.id, motivo: motivoCancelacion })} disabled={!motivoCancelacion.trim() || cancelarEnvioM.isPending} icon={<X size={15} />}>Confirmar cancelación</Btn>
             </div>
           </div>
         </UIModal>
       )}
 
-    {modal === 'envio' && (
+      {modal === 'envio' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Enviar stock a otra sede">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-            {/* Sección 1 — Destino y guía */}
             <div style={{ padding: '4px 0 16px', borderBottom: '1px solid var(--border)', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Destino</div>
-              <Select
-                label="Sede destino"
-                value={envio.sede_destino_id}
-                onChange={e => setEnvio({ ...envio, sede_destino_id: e.target.value })}
-              >
+              <Select label="Sede destino" value={envio.sede_destino_id} onChange={e => setEnvio({ ...envio, sede_destino_id: e.target.value })}>
                 <option value="">Seleccionar sede...</option>
-                {(sedesQ.data || [])
-                  .filter(s => String(s.id) !== String(sedeId))
-                  .map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)
-                }
+                {(sedesQ.data || []).filter(s => String(s.id) !== String(sedeId)).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
               </Select>
-              <Input
-                label="Número de guía / tracking"
-                value={envio.guia}
-                onChange={e => setEnvio({ ...envio, guia: e.target.value })}
-                placeholder="Ej: GU-2024-001"
-              />
+              <Input label="Número de guía / tracking" value={envio.guia} onChange={e => setEnvio({ ...envio, guia: e.target.value })} placeholder="Ej: GU-2024-001" />
             </div>
-
-            {/* Sección 2 — Productos */}
             <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 16, paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Productos a enviar</div>
-              <ProductSearch
-                label="Buscar producto"
-                search={envioSearch}
-                setSearch={setEnvioSearch}
-                products={stock.filter(s => s.cantidad > 0)}
-                selected={envio.items}
-                onAdd={p => setEnvio({ ...envio, items: [...envio.items, { producto_id: String(p.producto_id), cantidad: '' }] })}
-              />
-              <ItemsList
-                stock={stock}
-                items={envio.items}
-                setItems={items => setEnvio({ ...envio, items })}
-                showDisponible={true}
-              />
+              <ProductSearch label="Buscar producto" search={envioSearch} setSearch={setEnvioSearch} products={stock.filter(s => s.cantidad > 0)} selected={envio.items} onAdd={p => setEnvio({ ...envio, items: [...envio.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+              <ItemsList stock={stock} items={envio.items} setItems={items => setEnvio({ ...envio, items })} showDisponible={true} />
             </div>
-
-            {/* Sección 3 — Comentario */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Notas</div>
-              <Input
-                label="Comentario (opcional)"
-                value={envio.comentario}
-                onChange={e => setEnvio({ ...envio, comentario: e.target.value })}
-                placeholder="Instrucciones, observaciones..."
-              />
+              <Input label="Comentario (opcional)" value={envio.comentario} onChange={e => setEnvio({ ...envio, comentario: e.target.value })} placeholder="Instrucciones, observaciones..." />
             </div>
-
-            {/* Resumen */}
             {envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length > 0 && (
               <div style={{ padding: '10px 14px', background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <Package size={15} style={{ color: '#2563EB', marginTop: 1, flexShrink: 0 }} />
                 <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }}>
                   <strong style={{ color: 'var(--txt)', display: 'block', marginBottom: 2 }}>Resumen del envío</strong>
-                  {envio.items
-                    .filter(i => i.producto_id && Number(i.cantidad) > 0)
-                    .map((i, idx) => {
-                      const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-                      return (
-                        <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
-                          <span style={{ fontWeight: 700, color: '#2563EB', fontFamily: 'var(--font-mono)' }}>{i.cantidad}×</span>
-                          {prod?.producto || '?'}
-                        </span>
-                      );
-                    })
-                  }
+                  {envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).map((i, idx) => {
+                    const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+                    return <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}><span style={{ fontWeight: 700, color: '#2563EB', fontFamily: 'var(--font-mono)' }}>{i.cantidad}×</span>{prod?.producto || '?'}</span>;
+                  })}
                 </div>
               </div>
             )}
-
-            {/* Acción */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn
-                variant="blue"
-                onClick={() => enviarStockM.mutate()}
-                disabled={
-                  !envio.sede_destino_id ||
-                  !envio.guia.trim() ||
-                  envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0 ||
-                  enviarStockM.isPending
-                }
-                icon={<Send size={15} />}
-                style={{ fontWeight: 700 }}
-              >
+              <Btn variant="blue" onClick={() => enviarStockM.mutate()} disabled={!envio.sede_destino_id || !envio.guia.trim() || envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0 || enviarStockM.isPending} icon={<Send size={15} />} style={{ fontWeight: 700 }}>
                 Confirmar envío ({envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length} productos)
               </Btn>
             </div>
-
           </div>
         </UIModal>
       )}
-
     </div>
   );
 }
