@@ -270,10 +270,12 @@ export default function OrdenDetalle() {
                     </div>
                   )}
                 </div>
-                <Btn variant="ghost" size="sm" onClick={() => setShowAsignar(true)}
-                  style={{ width: '100%', justifyContent: 'center', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 4 }}>
-                  ↻ Cambiar técnico
-                </Btn>
+                {orden.estado !== 'COMPLETADA' && orden.estado !== 'CANCELADA' && (
+                  <Btn variant="ghost" size="sm" onClick={() => setShowAsignar(true)}
+                    style={{ width: '100%', justifyContent: 'center', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 4 }}>
+                    ↻ Cambiar técnico
+                  </Btn>
+                )}
               </div>
             ) : (
               <Btn variant="primary" size="sm" onClick={() => setShowAsignar(true)}>Asignar técnico</Btn>
@@ -477,6 +479,56 @@ export default function OrdenDetalle() {
                 ['Fecha fin',        fmtFechaHora(orden.fechaFin)],
               ]}
             />
+
+            {/* Materiales utilizados */}
+            {(orden.consumos?.length > 0) && (
+              <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em' }}>MATERIALES UTILIZADOS</span>
+                  <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{orden.consumos.length} item{orden.consumos.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {orden.consumos.map((c, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', background: 'var(--bg-3)',
+                      borderRadius: 8, border: '1px solid var(--border)',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{c.producto.nombre}</div>
+                        {c.producto.codigo && (
+                          <div style={{ fontSize: 11, color: 'var(--txt-3)', fontFamily: 'monospace' }}>{c.producto.codigo}</div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--orange, #E67E22)' }}>
+                          -{Number(c.cantidad).toFixed(c.producto.unidad === 'metros' ? 1 : 0)} {c.producto.unidad || 'und'}
+                        </div>
+                        {c.motivo && c.motivo !== 'SERVICIO' && (
+                          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>{c.motivo}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '6px 10px', borderTop: '1px solid var(--border)', marginTop: 2,
+                  }}>
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>Total items consumidos</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
+                      {orden.consumos.reduce((s, c) => s + Number(c.cantidad), 0).toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(!orden.consumos || orden.consumos.length === 0) && (
+              <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>MATERIALES UTILIZADOS</span>
+                <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin materiales registrados</span>
+              </div>
+            )}
 
           </div>
         </Modal>

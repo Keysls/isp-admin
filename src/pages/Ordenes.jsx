@@ -114,12 +114,15 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
         WebkitTapHighlightColor: 'transparent',
         display: 'flex', gap: 10, alignItems: 'flex-start',
       }}
-      onClick={() => modoSeleccion ? onToggle() : onNavigate(o.id)}
+      onClick={() => modoSeleccion
+          ? (o.estado !== 'COMPLETADA' && o.estado !== 'CANCELADA' && onToggle())
+          : onNavigate(o.id)
+        }
       onTouchStart={e => { if (!modoSeleccion) e.currentTarget.style.background = 'var(--bg-3)'; }}
       onTouchEnd={e => { if (!modoSeleccion) e.currentTarget.style.background = 'var(--bg)'; }}
     >
       {/* Checkbox en móvil */}
-      {modoSeleccion && (
+      {modoSeleccion && o.estado !== 'COMPLETADA' && o.estado !== 'CANCELADA' && (
         <div style={{ paddingTop: 2 }}>
           <Checkbox checked={seleccionado} onChange={onToggle} onClick={e => e.stopPropagation()} />
         </div>
@@ -458,7 +461,11 @@ export default function OrdenesPage() {
   };
 
   const toggleTodos = () => {
-    const elegibles = ordenes.filter(o => !TIPOS_SOLO_NOC.includes(o.tipoOrden));
+    const elegibles = ordenes.filter(o =>
+        !TIPOS_SOLO_NOC.includes(o.tipoOrden) &&
+        o.estado !== 'COMPLETADA' &&
+        o.estado !== 'CANCELADA'
+      );
     const todosSeleccionados = elegibles.every(o => seleccionados.has(o.id));
     setOrdenesSeleccionadas(prev => {
       const next = new Map(prev);
@@ -707,7 +714,7 @@ export default function OrdenesPage() {
                   style={{ background: seleccionado ? 'color-mix(in srgb, var(--accent) 6%, var(--bg))' : undefined }}
                 >
                   <Td style={{ width: 36 }} onClick={e => e.stopPropagation()}>
-                    {!esSoloNoc && (
+                    {!esSoloNoc && o.estado !== 'COMPLETADA' && o.estado !== 'CANCELADA' && (
                       <Checkbox
                         checked={seleccionado}
                         onChange={() => toggleSeleccion(o)}

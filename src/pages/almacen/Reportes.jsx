@@ -5,7 +5,6 @@ import { stockApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner } from '../../components/ui';
 
-// ─── CSS responsivo ───────────────────────────────────────────
 const CSS = `
   .arep-stats   { flex-wrap: wrap; }
   .arep-filters { flex-wrap: wrap; }
@@ -82,7 +81,8 @@ export default function AdminAlmacenReportes() {
   const { data: auditoria, isLoading } = useQuery({
     queryKey: ['admin-stock-auditoria', sedeId],
     enabled: Boolean(sedeId),
-    queryFn: () => stockApi.auditoria().then(r => r.data),
+    queryFn: () => stockApi.auditoria({ sedeId }).then(r => r.data),
+
     staleTime: 30000,
   });
 
@@ -98,7 +98,7 @@ export default function AdminAlmacenReportes() {
     const search = q.toLowerCase();
     return movimientos.filter(m => {
       const matchTipo = !activeTipo || m.tipo === activeTipo;
-      const matchQ = !search || [m.item, m.comentario, m.motivo].some(v => v?.toLowerCase().includes(search));
+      const matchQ = !search || [m.item, m.comentario, m.motivo, m.tecnico_nombre].some(v => v?.toLowerCase().includes(search));
       return matchTipo && matchQ;
     });
   }, [movimientos, q, activeTipo]);
@@ -131,7 +131,6 @@ export default function AdminAlmacenReportes() {
         </div>
       </div>
 
-      {/* Stat cards — en móvil grid 2 cols */}
       <div className="arep-stats" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         {Object.entries(TIPOS).map(([tipo]) => (
           <StatCard key={tipo} tipo={tipo} count={counts[tipo] || 0}
@@ -139,11 +138,10 @@ export default function AdminAlmacenReportes() {
         ))}
       </div>
 
-      {/* Filtros — en móvil columna */}
       <div className="arep-filters" style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt-3)' }} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto, comentario..."
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto, técnico, comentario..."
             style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <select value={activeTipo} onChange={e => setActiveTipo(e.target.value)}
@@ -157,7 +155,6 @@ export default function AdminAlmacenReportes() {
         <strong style={{ color: 'var(--txt)' }}>{filtered.length}</strong> registro{filtered.length !== 1 ? 's' : ''}
       </p>
 
-      {/* Grupos por día */}
       {Object.entries(byDay).map(([day, items]) => {
         const porTipo = {};
         items.forEach(m => { if (!porTipo[m.tipo]) porTipo[m.tipo] = []; porTipo[m.tipo].push(m); });
@@ -175,28 +172,33 @@ export default function AdminAlmacenReportes() {
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--txt-3)' }}>{rows.length} ítem{rows.length !== 1 ? 's' : ''}</span>
                 </div>
 
-                {/* Desktop: grid */}
+                {/* Desktop */}
                 <div className="arep-row" style={{ gap: 12, padding: '7px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-                  <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Detalle / Sede</span>
+                  <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Detalle / Técnico / Sede</span>
                 </div>
                 {rows.map((m, i) => (
                   <div key={i} className="arep-row" style={{ gap: 12, padding: '11px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                     <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
                     <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
-                    <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>
+                    <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       {m.tipo === 'envio_salida' && m.sede_destino && (
-                        <span style={{ color: '#3b82f6', fontWeight: 600, marginRight: 6 }}>→ {m.sede_destino}</span>
+                        <span style={{ color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</span>
                       )}
                       {m.tipo === 'envio_entrada' && m.sede_origen && (
-                        <span style={{ color: '#0f6e56', fontWeight: 600, marginRight: 6 }}>← {m.sede_origen}</span>
+                        <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
                       )}
-                      {m.comentario || m.motivo || (!m.sede_destino && !m.sede_origen ? '—' : '')}
+                      {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                        <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
+                          👤 {m.tecnico_nombre}
+                        </span>
+                      )}
+                      {m.comentario || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
                     </span>
                   </div>
                 ))}
 
-                {/* Móvil: cards */}
+                {/* Móvil */}
                 <div className="arep-cards">
                   {rows.map((m, i) => (
                     <div key={i} className="arep-card">
@@ -210,6 +212,9 @@ export default function AdminAlmacenReportes() {
                       )}
                       {m.tipo === 'envio_entrada' && m.sede_origen && (
                         <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
+                      )}
+                      {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                        <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
                       )}
                       {(m.comentario || m.motivo) && (
                         <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{m.comentario || m.motivo}</div>
