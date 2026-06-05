@@ -60,9 +60,14 @@ export const instalacionesApi = {
 
 // El admin solo puede editar su propio perfil y cambiar contraseñas de sus técnicos
 export const usuariosApi = {
-  activar:         (id, activo) => api.patch(`/usuarios/${id}/activar`, { activo }),
-  password:        (id, data)   => api.patch(`/usuarios/${id}/password`, data),
-  actualizarPerfil:(data)       => api.patch('/usuarios/perfil', data),
+  activar:           (id, activo) => api.patch(`/usuarios/${id}/activar`, { activo }),
+  password:          (id, data)   => api.patch(`/usuarios/${id}/password`, data),
+  actualizarPerfil:  (data)       => api.patch('/usuarios/perfil', data),
+  // Secretarios
+  listarSecretarios: ()           => api.get('/usuarios/secretarios'),
+  crearSecretario:   (data)       => api.post('/usuarios/secretarios', data),
+  actualizar:        (id, data)   => api.patch(`/usuarios/${id}`, data),
+  resetPassword:     (id, data)   => api.patch(`/usuarios/${id}/password`, data),
 };
 
 export const contratosApi = {
@@ -74,7 +79,8 @@ export const contratosApi = {
 };
 
 export const sedesApi = {
-  listar: () => api.get('/sedes'),
+  listar:         ()       => api.get('/sedes'),
+  listarParaEnvio:()       => api.get('/sedes?para_envio=true'),
 };
 /*
 export const puntosRedApi = {
@@ -97,15 +103,21 @@ export const puntosRedApi = {
 // ─── Inventario ────────────────────────────────────────────────
  
 export const productosApi = {
-  listar:       (params)    => api.get('/productos', { params }),
-  categorias:   ()          => api.get('/productos/categorias'),
-  crear:        (data)      => api.post('/productos', data),
-  actualizar:   (id, data)  => api.put(`/productos/${id}`, data),
-  stockPorSede: (sedeId)    => api.get(`/productos/stock-sede/${sedeId}`),
-  entrada:      (data)      => api.post('/productos/entrada', data),
+  listar:         (params)     => api.get('/productos', { params }),
+  catalogo:       (params)     => api.get('/productos', { params: { ...params, catalogo: true } }),
+  categorias:     ()           => api.get('/productos/categorias'),
+  crear:          (data)       => api.post('/productos', data),
+  actualizar:     (id, data)   => api.put(`/productos/${id}`, data),
+  stockPorSede:   (sedeId)     => api.get(`/productos/stock-sede/${sedeId}`),
+  entrada:        (data)       => api.post('/productos/entrada', data),
+  variantes:      (productoId) => api.get(`/productos/${productoId}/variantes`),
+  crearVariante:  (productoId, data) => api.post(`/productos/${productoId}/variantes`, data),
+  actualizarVariante: (id, data)    => api.put(`/productos/variantes/${id}`, data),
+  eliminarVariante:   (id)          => api.delete(`/productos/variantes/${id}`),
 };
  
 export const stockApi = {
+  inventarioTecnico: (tecnicoId) => api.get(`/stock/tecnico/${tecnicoId}`),
   listar:                 (params)         => api.get('/stock', { params }),
   stats:                  (params)         => api.get('/stock/stats', { params }),
   auditoria:              (params)         => api.get('/stock/auditoria', { params }),
@@ -117,6 +129,7 @@ export const stockApi = {
   listarEnviosOrigen:     ({ sedeId })     => api.get('/stock/envios/origen', { params: { sedeId } }),
   confirmarEnvio:         (id)             => api.post(`/stock/envios/${id}/confirmar`),
   cancelarEnvio:          (id, { motivo }) => api.post(`/stock/envios/${id}/cancelar`, { motivo }),
+  enviarSede:             (data)           => api.post('/stock/enviar-sede', data),
 };
  
 export const onusApi = {
@@ -129,3 +142,9 @@ export const onusApi = {
 
 
 export default api;
+
+export const notificacionesApi = {
+  listar:           (params) => api.get('/notificaciones', { params }),
+  marcarLeida:      (id)     => api.patch(`/notificaciones/${id}/leida`),
+  marcarTodasLeidas:(sedeId) => api.patch('/notificaciones/marcar-todas-leidas', { sedeId }),
+};

@@ -177,14 +177,22 @@ export default function AdminAlmacenReportes() {
 
                 {/* Desktop: grid */}
                 <div className="arep-row" style={{ gap: 12, padding: '7px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-                  <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Comentario</span>
+                  <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Detalle / Sede</span>
                 </div>
                 {rows.map((m, i) => (
                   <div key={i} className="arep-row" style={{ gap: 12, padding: '11px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                     <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
                     <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
-                    <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{m.comentario || m.motivo || '—'}</span>
+                    <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>
+                      {m.tipo === 'envio_salida' && m.sede_destino && (
+                        <span style={{ color: '#3b82f6', fontWeight: 600, marginRight: 6 }}>→ {m.sede_destino}</span>
+                      )}
+                      {m.tipo === 'envio_entrada' && m.sede_origen && (
+                        <span style={{ color: '#0f6e56', fontWeight: 600, marginRight: 6 }}>← {m.sede_origen}</span>
+                      )}
+                      {m.comentario || m.motivo || (!m.sede_destino && !m.sede_origen ? '—' : '')}
+                    </span>
                   </div>
                 ))}
 
@@ -197,6 +205,12 @@ export default function AdminAlmacenReportes() {
                         <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
+                      {m.tipo === 'envio_salida' && m.sede_destino && (
+                        <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</div>
+                      )}
+                      {m.tipo === 'envio_entrada' && m.sede_origen && (
+                        <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
+                      )}
                       {(m.comentario || m.motivo) && (
                         <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{m.comentario || m.motivo}</div>
                       )}

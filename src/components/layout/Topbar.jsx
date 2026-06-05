@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, UserCircle, Menu, PanelLeft, Bell, BellOff } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { notificacionesApi } from '../../services/api';
 
 const TOPBAR_CSS = `
   @media (max-width: 1080px) {
@@ -32,7 +34,10 @@ const TITULOS = {
 
 function tituloDeRuta(pathname) {
   if (pathname === '/') return TITULOS['/'];
-  const match = Object.keys(TITULOS).find(r => r !== '/' && pathname.startsWith(r));
+  const match = Object.keys(TITULOS)
+    .filter(r => r !== '/')
+    .sort((a, b) => b.length - a.length)   // más específico primero
+    .find(r => pathname.startsWith(r));
   return match ? TITULOS[match] : 'Panel';
 }
 
@@ -45,8 +50,27 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
   const [showMenu,  setShowMenu]  = useState(false);
   const [showNotis, setShowNotis] = useState(false);
 
-  // ── Notificaciones (sin conectar aún) ──────────────────────────
-  const notificaciones = []; // <- aquí irá el useQuery cuando lo conectes
+  // ── Notificaciones ──────────────────────────────────────────
+  const qc = useQueryClient();
+  const sedeId = usuario?.sedeId;
+
+  const { data: notisData } = useQuery({
+    queryKey: ['notificaciones-admin', sedeId],
+    queryFn:  () => notificacionesApi.listar({ sedeId }).then(r => r.data),
+    refetchInterval: 10000,   // refresca cada 10 seg
+    enabled: !!sedeId,
+  });
+  const notificaciones = notisData?.items || [];
+
+  const marcarLeida = async (id) => {
+    await notificacionesApi.marcarLeida(id);
+    qc.invalidateQueries({ queryKey: ['notificaciones-admin'] });
+  };
+
+  const marcarTodas = async () => {
+    await notificacionesApi.marcarTodasLeidas(sedeId);
+    qc.invalidateQueries({ queryKey: ['notificaciones-admin'] });
+  };
 
   const titulo    = tituloDeRuta(loc.pathname);
   const iniciales = `${usuario?.nombre?.[0] || ''}${usuario?.apellido?.[0] || ''}`.toUpperCase();
@@ -129,10 +153,15 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
             <Bell size={18}/>
             {notificaciones.length > 0 && (
               <span style={{
-                position: 'absolute', top: 7, right: 8,
-                width: 8, height: 8, borderRadius: '50%',
+                position: 'absolute', top: 4, right: 4,
+                minWidth: 16, height: 16, borderRadius: 999,
                 background: '#DC2626', border: '1.5px solid #fff',
-              }}/>
+                fontSize: 9, fontWeight: 800, color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 3px', lineHeight: 1,
+              }}>
+                {notificaciones.length > 99 ? '99+' : notificaciones.length}
+              </span>
             )}
           </button>
 
@@ -147,8 +176,15 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
                 boxShadow: '0 8px 24px rgba(30,58,138,0.12)',
                 overflow: 'hidden', zIndex: 999,
               }}>
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid #EAF1F8' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1B2A' }}>Notificaciones</span>
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid #EAF1F8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1B2A' }}>
+                    Notificaciones {notificaciones.length > 0 && <span style={{ marginLeft: 6, fontSize: 11, background: '#DC2626', color: '#fff', borderRadius: 20, padding: '1px 7px' }}>{notificaciones.length}</span>}
+                  </span>
+                  {notificaciones.length > 0 && (
+                    <button onClick={marcarTodas} style={{ fontSize: 11, color: '#3B9FD4', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      Marcar todas leídas
+                    </button>
+                  )}
                 </div>
                 {notificaciones.length === 0 ? (
                   <div style={{ padding: '32px 20px', textAlign: 'center', color: '#8AAABB' }}>
@@ -159,7 +195,7 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
                   <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                     {notificaciones.map(n => (
                       <div key={n.id}
-                        onClick={() => { setShowNotis(false); navigate(n.link); }}
+                        onClick={() => { marcarLeida(n.id); setShowNotis(false); if (n.link) navigate(n.link); }}
                         style={{
                           display: 'flex', gap: 10, padding: '10px 14px',
                           borderBottom: '1px solid #EAF1F8', cursor: 'pointer',
@@ -168,10 +204,17 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <div style={{
                           width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                          background: '#DC262615',
+                          background: n.tipo === 'ENVIO_PENDIENTE_RECEPCION' ? '#F59E0B15'
+                            : n.tipo === 'STOCK_CRITICO' ? '#DC262615'
+                            : n.tipo === 'STOCK_BAJO'    ? '#F59E0B15'
+                            : '#DC262615',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <Bell size={15} color="#DC2626"/>
+                          {n.tipo === 'ENVIO_PENDIENTE_RECEPCION' ? <span style={{ fontSize: 15 }}>📦</span>
+                            : n.tipo === 'STOCK_CRITICO'             ? <span style={{ fontSize: 15 }}>🚨</span>
+                            : n.tipo === 'STOCK_BAJO'                ? <span style={{ fontSize: 15 }}>⚠️</span>
+                            : <Bell size={15} color="#DC2626"/>
+                          }
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12, fontWeight: 600, color: '#0D1B2A' }}>

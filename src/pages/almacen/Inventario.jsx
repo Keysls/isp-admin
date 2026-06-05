@@ -223,7 +223,7 @@ export default function AdminAlmacenInventario() {
   const tecnicosQ = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
   const enviosPendientesQ = useQuery({ queryKey: ['envios-pendientes', sedeId], enabled: Boolean(sedeId), queryFn: () => stockApi.listarEnviosPendientes({ sedeId }).then(r => r.data) });
-  const sedesQ = useQuery({ queryKey: ['sedes-lista'], queryFn: () => sedesApi.listar().then(r => r.data) });
+  const sedesQ = useQuery({ queryKey: ['sedes-para-envio'], queryFn: () => sedesApi.listarParaEnvio().then(r => r.data) });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['admin-stock-sede'] });
@@ -386,7 +386,7 @@ export default function AdminAlmacenInventario() {
 
       {/* ── Modales (sin cambios) ── */}
       {modal === 'entrada' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada">
+        <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada" overlayColor="rgba(255,255,255,0.85)">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <ProductSearch label="Buscar producto del catálogo" search={entradaSearch} setSearch={setEntradaSearch} products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, unidad: p.unidad }))} selected={entrada.items} onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
             <ItemsList stock={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, cantidad: null }))} items={entrada.items} setItems={items => setEntrada({ ...entrada, items })} showDisponible={false} />
@@ -453,7 +453,7 @@ export default function AdminAlmacenInventario() {
       )}
 
       {modal === 'asignar' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Asignar stock a técnico">
+        <UIModal open={true} onClose={() => setModal(null)} title="Asignar stock a técnico" overlayColor="rgba(255,255,255,0.85)">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Select label="Técnico" value={asignacion.tecnico_id} onChange={e => setAsignacion({ ...asignacion, tecnico_id: e.target.value })}>
               <option value="">Seleccionar...</option>
@@ -468,7 +468,7 @@ export default function AdminAlmacenInventario() {
       )}
 
       {modal === 'directa' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock">
+        <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock" overlayColor="rgba(255,255,255,0.85)">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <ProductSearch label="Buscar producto" search={directaSearch} setSearch={setDirectaSearch} products={stock.filter(s => s.cantidad > 0)} selected={directa.items} onAdd={p => setDirecta({ ...directa, items: [...directa.items, { producto_id: String(p.producto_id), cantidad: '', onu_ids: [] }] })} />
             <ItemsList stock={stock} items={directa.items} setItems={items => setDirecta({ ...directa, items })} sedeId={sedeId} />

@@ -40,9 +40,9 @@ export const useAuthStore = create((set) => ({
     try {
       const { data } = await authApi.login({ email, password, dispositivo: 'Panel Admin' });
 
-      // Solo ADMIN accede al panel admin
+      // ADMIN y SECRETARIA acceden al panel admin
       // SUPERADMIN tiene su propio panel (NOC)
-      if (data.usuario.rol !== 'ADMIN') {
+      if (!['ADMIN', 'SECRETARIA'].includes(data.usuario.rol)) {
         await invalidarTokenHuerfano(data.token);
         set({ loading: false });
         return { ok: false, error: 'No tienes acceso al panel de administrador' };

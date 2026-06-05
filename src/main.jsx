@@ -14,6 +14,7 @@ import OrdenDetalle      from './pages/OrdenDetalle';
 import Clientes          from './pages/Clientes';
 import ClienteDetalle    from './pages/ClienteDetalle';
 import TecnicosPage      from './pages/Tecnicos';
+import SecretariosPage   from './pages/Secretarios';
 import ReportesPage      from './pages/Reportes';
 import PerfilPage        from './pages/Perfil';
 import MapaPage          from './pages/Mapa';
@@ -52,6 +53,7 @@ function App() {
                 <Route path="/clientes"         element={<Clientes />} />
                 <Route path="/clientes/:numero" element={<ClienteDetalle />} />
                 <Route path="/tecnicos"          element={<TecnicosPage />} />
+                <Route path="/secretarios"       element={<SecretariosPage />} />
                 <Route path="/reportes"          element={<ReportesPage />} />
                 <Route path="/perfil"            element={<PerfilPage />}   />
                 <Route path="/mapa"              element={<MapaPage />} />

@@ -2,22 +2,27 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Contact, Users,
-  BarChart2, Map, Package, Calendar,
+  BarChart2, Map, Package, UserCog,
 } from 'lucide-react';
+import { useAuthStore } from '../../store/auth.store';
 
-const NAV = [
-  { to: '/',          label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/ordenes',   label: 'Órdenes',   icon: ClipboardList   },
-  { to: '/clientes',  label: 'Clientes',  icon: Contact         },
-  { to: '/mapa',      label: 'Mapa',      icon: Map             },
-  { to: '/tecnicos',  label: 'Técnicos',  icon: Users           },
-  { to: '/reportes',  label: 'Reportes',  icon: BarChart2       },
+const NAV_PRINCIPAL = [
+  { to: '/',         label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/ordenes',  label: 'Órdenes',   icon: ClipboardList   },
+  { to: '/clientes', label: 'Clientes',  icon: Contact         },
+  { to: '/mapa',     label: 'Mapa',      icon: Map             },
+  { to: '/reportes', label: 'Reportes',  icon: BarChart2       },
 ];
 
 const NAV_ALMACEN = [
   { to: '/almacen',            label: 'Dashboard',  icon: LayoutDashboard },
   { to: '/almacen/inventario', label: 'Inventario', icon: Package         },
   { to: '/almacen/reportes',   label: 'Reportes',   icon: BarChart2       },
+];
+
+const NAV_PERSONAL = [
+  { to: '/tecnicos',    label: 'Técnicos',       icon: Users    },
+  { to: '/secretarios', label: 'Secretario(a)',  icon: UserCog  },
 ];
 
 const S = {
@@ -115,12 +120,16 @@ const S = {
 };
 
 export default function Sidebar({ esMovil, abierto, colapsado, onCerrar }) {
-  const loc = useLocation();
+  const loc     = useLocation();
+  const usuario = useAuthStore(s => s.usuario);
+  const esAdmin = usuario?.rol === 'ADMIN';
 
   const isActive = (to) =>
     to === '/' || to === '/almacen'
       ? loc.pathname === to
       : loc.pathname.startsWith(to);
+
+  const navItemProps = { colapsado, esMovil, onCerrar };
 
   return (
     <>
@@ -138,10 +147,7 @@ export default function Sidebar({ esMovil, abierto, colapsado, onCerrar }) {
       }}>
 
         {/* ── Header ── */}
-        <div style={{
-          ...S.header,
-          justifyContent: colapsado ? 'center' : 'flex-start',
-        }}>
+        <div style={{ ...S.header, justifyContent: colapsado ? 'center' : 'flex-start' }}>
           <div style={S.logoWrap}>
             <img
               src="/logo-e.png"
@@ -157,7 +163,9 @@ export default function Sidebar({ esMovil, abierto, colapsado, onCerrar }) {
           {!colapsado && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={S.brandName}>Enet Fiber Perú</div>
-              <div style={S.brandSub}>Panel Administrador</div>
+              <div style={S.brandSub}>
+                {esAdmin ? 'Panel Administrador' : 'Panel Secretaría'}
+              </div>
             </div>
           )}
         </div>
@@ -165,41 +173,31 @@ export default function Sidebar({ esMovil, abierto, colapsado, onCerrar }) {
         {/* ── Nav ── */}
         <nav style={S.nav}>
 
-          {/* Sección principal */}
-          {!colapsado
-            ? <div style={S.sectionLabel}>Menú principal</div>
-            : <div style={S.sectionDivider} />
-          }
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <NavItem
-              key={to}
-              to={to}
-              label={label}
-              Icon={Icon}
-              active={isActive(to)}
-              colapsado={colapsado}
-              esMovil={esMovil}
-              onCerrar={onCerrar}
-            />
+          {/* Menú principal */}
+          {!colapsado ? <div style={S.sectionLabel}>Menú principal</div> : <div style={S.sectionDivider} />}
+          {NAV_PRINCIPAL.map(({ to, label, icon: Icon }) => (
+            <NavItem key={to} to={to} label={label} Icon={Icon} active={isActive(to)} {...navItemProps} />
           ))}
 
-          {/* Sección almacén */}
-          {!colapsado
-            ? <div style={S.sectionLabel}>Almacén</div>
-            : <div style={S.sectionDivider} />
-          }
-          {NAV_ALMACEN.map(({ to, label, icon: Icon }) => (
-            <NavItem
-              key={to}
-              to={to}
-              label={label}
-              Icon={Icon}
-              active={isActive(to)}
-              colapsado={colapsado}
-              esMovil={esMovil}
-              onCerrar={onCerrar}
-            />
-          ))}
+          {/* Almacén — solo ADMIN */}
+          {esAdmin && (
+            <>
+              {!colapsado ? <div style={S.sectionLabel}>Almacén</div> : <div style={S.sectionDivider} />}
+              {NAV_ALMACEN.map(({ to, label, icon: Icon }) => (
+                <NavItem key={to} to={to} label={label} Icon={Icon} active={isActive(to)} {...navItemProps} />
+              ))}
+            </>
+          )}
+
+          {/* Personal — solo ADMIN */}
+          {esAdmin && (
+            <>
+              {!colapsado ? <div style={S.sectionLabel}>Personal</div> : <div style={S.sectionDivider} />}
+              {NAV_PERSONAL.map(({ to, label, icon: Icon }) => (
+                <NavItem key={to} to={to} label={label} Icon={Icon} active={isActive(to)} {...navItemProps} />
+              ))}
+            </>
+          )}
 
         </nav>
       </aside>

@@ -78,7 +78,7 @@ export function Btn({ children, variant = 'primary', size = 'md', onClick, disab
     fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: '0.02em',
     borderRadius: 8, cursor: disabled || loading ? 'not-allowed' : 'pointer',
     opacity: disabled || loading ? 0.5 : 1, transition: 'all .15s',
-    border: '1px solid transparent',
+    borderWidth: 1, borderStyle: 'solid', borderColor: 'transparent', // 👈 cambiado
   };
   const sizes = { sm: { padding: '5px 12px', fontSize: 12 }, md: { padding: '8px 18px', fontSize: 13 }, lg: { padding: '11px 24px', fontSize: 14 } };
   const variants = {
