@@ -6,7 +6,6 @@ import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../se
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner, Btn, Input, Select, Badge, Modal as UIModal } from '../../components/ui';
 
-// ─── CSS responsivo ───────────────────────────────────────────
 const CSS = `
   .ainv-btns    { flex-wrap: wrap; }
   .ainv-table   { display: block; }
@@ -90,6 +89,25 @@ function StockBar({ stock, minimo }) {
   );
 }
 
+/** Metros disponibles — solo para productos medibles (ej: rollos de fibra) */
+function MetrosCell({ p }) {
+  if (!p.es_medible || !p.metros_por_unidad) return null;
+  const metros = p.cantidad * p.metros_por_unidad;
+  const minimoMetros = (p.stock_minimo || 0) * p.metros_por_unidad;
+  const low   = minimoMetros > 0 && metros <= minimoMetros;
+  const warn  = minimoMetros > 0 && metros <= minimoMetros * 1.5;
+  const color = metros === 0 ? 'var(--red)' : low ? 'var(--red)' : warn ? '#D97706' : '#16A34A';
+  return (
+    <div>
+      <span style={{ fontWeight: 700, color, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+        {metros.toLocaleString()}
+      </span>
+      <span style={{ fontSize: 10, color: 'var(--txt-3)', marginLeft: 3 }}>m</span>
+      <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>× {p.metros_por_unidad.toLocaleString()} m/u</div>
+    </div>
+  );
+}
+
 function Toolbar({ q, setQ }) {
   return (
     <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -114,7 +132,8 @@ function ProductSearch({ label, search, setSearch, products, selected, onAdd }) 
       {results.length > 0 && (
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, marginTop: 6, maxHeight: 220, overflowY: 'auto', background: 'var(--bg-card)' }}>
           {results.map(p => (
-            <button key={p.producto_id} type="button" onClick={() => { onAdd(p); setSearch(''); }} style={{ width: '100%', border: 0, background: 'transparent', padding: '9px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', borderBottom: '1px solid var(--border)', transition: 'background .12s' }}
+            <button key={p.producto_id} type="button" onClick={() => { onAdd(p); setSearch(''); }}
+              style={{ width: '100%', border: 0, background: 'transparent', padding: '9px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', borderBottom: '1px solid var(--border)', transition: 'background .12s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               <span><strong>{p.producto}</strong>{p.codigo && <span style={{ marginLeft: 8, color: 'var(--txt-3)', fontSize: 12 }}>{p.codigo}</span>}</span>
@@ -272,6 +291,7 @@ export default function AdminAlmacenInventario() {
   const productos = productosQ.data || [];
   const stock = stockQ.data || [];
   const productosOnu = stock.filter(s => s.cantidad > 0 && isOnuProduct(s));
+  const hayMedibles = rows.some(p => p.es_medible);
 
   if (stockQ.isLoading) return (
     <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -283,7 +303,6 @@ export default function AdminAlmacenInventario() {
     <div style={{ padding: 28 }} className="animate-fade">
       <Header title="Inventario" subtitle="Stock local, entradas y entregas a técnicos" right={<SedeBadge sedeNombre={sedeNombre} />} />
 
-      {/* Botones de acción — en móvil columna */}
       <div className="ainv-btns" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={16} />}>Registrar entrada</Btn>
         <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [] }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={16} />}>Salida directa</Btn>
@@ -293,7 +312,6 @@ export default function AdminAlmacenInventario() {
         )}
       </div>
 
-      {/* Envíos pendientes */}
       {(enviosPendientesQ.data || []).length > 0 && (
         <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(enviosPendientesQ.data || []).map(envio => (
@@ -321,14 +339,14 @@ export default function AdminAlmacenInventario() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
-                {['Código', 'Producto', 'Categoría', 'Unidad', 'Stock', 'Estado'].map(h => (
+                {['Código', 'Producto', 'Categoría', 'Unidad', 'Stock', ...(hayMedibles ? ['Metros disp.'] : []), 'Estado'].map(h => (
                   <th key={h} style={{ padding: '10px 12px', color: 'var(--txt-3)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</td></tr>
+                <tr><td colSpan={hayMedibles ? 7 : 6} style={{ padding: 24, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</td></tr>
               ) : rows.map(p => {
                 const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
                 return (
@@ -338,6 +356,7 @@ export default function AdminAlmacenInventario() {
                     <td style={{ padding: '11px 12px', color: 'var(--txt-2)' }}>{p.categoria || '—'}</td>
                     <td style={{ padding: '11px 12px', color: 'var(--txt-2)' }}>{p.unidad || '—'}</td>
                     <td style={{ padding: '11px 12px' }}><StockBar stock={p.cantidad} minimo={p.stock_minimo} /></td>
+                    {hayMedibles && <td style={{ padding: '11px 12px' }}><MetrosCell p={p} /></td>}
                     <td style={{ padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Badge color={low ? 'red' : 'green'}>{low ? 'Bajo stock' : 'Disponible'}</Badge>
                       {isOnuProduct(p) && (
@@ -372,6 +391,11 @@ export default function AdminAlmacenInventario() {
                   {p.categoria && <Badge color="blue">{p.categoria}</Badge>}
                   {p.unidad && <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{p.unidad}</span>}
                   <StockBar stock={p.cantidad} minimo={p.stock_minimo} />
+                  {p.es_medible && p.metros_por_unidad && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: p.cantidad * p.metros_por_unidad === 0 ? 'var(--red)' : '#16A34A', fontFamily: 'var(--font-mono)' }}>
+                      {(p.cantidad * p.metros_por_unidad).toLocaleString()} m
+                    </span>
+                  )}
                 </div>
                 {isOnuProduct(p) && (
                   <Btn variant="ghost" size="sm" icon={<Wifi size={13} />} onClick={() => { setOnuForm({ producto_id: String(p.producto_id), codigos_pon: [''] }); setModal('onu'); }}>
@@ -384,7 +408,6 @@ export default function AdminAlmacenInventario() {
         </div>
       </Card>
 
-      {/* ── Modales (sin cambios) ── */}
       {modal === 'entrada' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada" overlayColor="rgba(255,255,255,0.85)">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
