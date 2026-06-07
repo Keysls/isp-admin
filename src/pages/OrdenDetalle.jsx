@@ -81,6 +81,15 @@ if (typeof document !== 'undefined' && !document.getElementById('od-responsive-c
   document.head.appendChild(s);
 }
 
+/** Convierte cantidad en unidades a la representación para mostrar */
+function formatCantidadConsumo(c) {
+  if (c.producto.esMedible && c.producto.metrosPorUnidad) {
+    const metros = Number(c.cantidad) * c.producto.metrosPorUnidad;
+    return { valor: metros, unidad: 'm' };
+  }
+  return { valor: Number(c.cantidad), unidad: c.producto.unidad || 'und' };
+}
+
 export default function OrdenDetalle() {
   const { id }   = useParams();
   const navigate = useNavigate();
@@ -248,7 +257,6 @@ export default function OrdenDetalle() {
             </Card>
           )}
 
-          {/* Técnico */}
           <Card>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, color: 'var(--txt-3)', marginBottom: 10, letterSpacing: '0.06em' }}>TÉCNICO ASIGNADO</h3>
             {orden.tecnico ? (
@@ -328,7 +336,7 @@ export default function OrdenDetalle() {
                 ) : <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin GPS</span>}
               </div>
 
-              {/* Config ONU — solo Internet */}
+              {/* Config ONU */}
               {tieneInternet && (
                 <div style={{ padding: '14px 16px', borderRight: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 10, color: 'var(--txt-3)', letterSpacing: '0.06em', marginBottom: 8 }}>SEÑAL ONU</div>
@@ -488,35 +496,38 @@ export default function OrdenDetalle() {
                   <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{orden.consumos.length} item{orden.consumos.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {orden.consumos.map((c, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 10px', background: 'var(--bg-3)',
-                      borderRadius: 8, border: '1px solid var(--border)',
-                    }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{c.producto.nombre}</div>
-                        {c.producto.codigo && (
-                          <div style={{ fontSize: 11, color: 'var(--txt-3)', fontFamily: 'monospace' }}>{c.producto.codigo}</div>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--orange, #E67E22)' }}>
-                          -{Number(c.cantidad).toFixed(c.producto.unidad === 'metros' ? 1 : 0)} {c.producto.unidad || 'und'}
+                  {orden.consumos.map((c, i) => {
+                    const { valor, unidad } = formatCantidadConsumo(c);
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 10px', background: 'var(--bg-3)',
+                        borderRadius: 8, border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{c.producto.nombre}</div>
+                          {c.producto.codigo && (
+                            <div style={{ fontSize: 11, color: 'var(--txt-3)', fontFamily: 'monospace' }}>{c.producto.codigo}</div>
+                          )}
                         </div>
-                        {c.motivo && c.motivo !== 'SERVICIO' && (
-                          <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>{c.motivo}</div>
-                        )}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--orange, #E67E22)' }}>
+                            -{valor % 1 === 0 ? valor : valor.toFixed(1)} {unidad}
+                          </div>
+                          {c.motivo && c.motivo !== 'SERVICIO' && (
+                            <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>{c.motivo}</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '6px 10px', borderTop: '1px solid var(--border)', marginTop: 2,
                   }}>
-                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>Total items consumidos</span>
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>Total materiales</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
-                      {orden.consumos.reduce((s, c) => s + Number(c.cantidad), 0).toFixed(1)}
+                      {orden.consumos.length} item{orden.consumos.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
