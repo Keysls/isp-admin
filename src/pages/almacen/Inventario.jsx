@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Check, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';
-import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
+// En los imports de lucide-react, agrega FileDown:
+import { Check, FileDown, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner, Btn, Input, Select, Badge, Modal as UIModal } from '../../components/ui';
 
@@ -293,6 +293,41 @@ export default function AdminAlmacenInventario() {
   const productosOnu = stock.filter(s => s.cantidad > 0 && isOnuProduct(s));
   const hayMedibles = rows.some(p => p.es_medible);
 
+  const exportarExcel = () => {
+  const datos = rows.map(p => {
+    const metros = p.es_medible && p.metros_por_unidad ? p.cantidad * p.metros_por_unidad : null;
+    const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
+    return {
+      'Código':             p.codigo || '—',
+      'Producto':           p.producto,
+      'Categoría':          p.categoria || '—',
+      'Unidad':             p.unidad || '—',
+      'Stock':              p.cantidad,
+      'Metros disponibles': metros !== null ? metros : '—',
+      'Estado':             low ? 'Bajo stock' : 'Disponible',
+    };
+  });
+
+  import('xlsx').then(XLSX => {
+    const ws = XLSX.utils.json_to_sheet(datos);
+
+    // Anchos de columna
+    ws['!cols'] = [
+      { wch: 14 }, // Código
+      { wch: 32 }, // Producto
+      { wch: 18 }, // Categoría
+      { wch: 12 }, // Unidad
+      { wch: 10 }, // Stock
+      { wch: 18 }, // Metros disponibles
+      { wch: 14 }, // Estado
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+    XLSX.writeFile(wb, `inventario_${sedeNombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  });
+};
+
   if (stockQ.isLoading) return (
     <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
       <Spinner size={28} />
@@ -310,6 +345,9 @@ export default function AdminAlmacenInventario() {
         {puedeEnviarStock && (
           <Btn variant="blue" onClick={() => setModal('envio')} icon={<Send size={16} />} style={{ border: '2px solid #2563EB', borderRadius: 10, fontWeight: 700, boxShadow: '0 2px 8px rgba(37,99,235,0.18)' }}>Enviar a otra sede</Btn>
         )}
+        <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={16} />}>
+          Exportar Excel
+        </Btn>
       </div>
 
       {(enviosPendientesQ.data || []).length > 0 && (
