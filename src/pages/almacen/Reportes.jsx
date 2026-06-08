@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, Download, FileDown, X, Calendar, User, Tag } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { stockApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
-import { Card, Spinner } from '../../components/ui';
-
+import { Card, Spinner, Btn, Modal as UIModal } from '../../components/ui';
 const CSS = `
   .arep-stats   { flex-wrap: wrap; }
   .arep-filters { flex-wrap: wrap; }
@@ -28,7 +28,141 @@ const CSS = `
     flex-direction: column;
     gap: 4px;
   }
+
+  .arep-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--txt);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s;
+  }
+  .arep-export-btn:hover {
+    background: var(--bg-3, #e8f0fe);
+    border-color: #2563EB;
+    color: #2563EB;
+  }
+  .arep-export-btn.primary {
+    background: #2563EB;
+    border-color: #2563EB;
+    color: #fff;
+  }
+  .arep-export-btn.primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+
+  /* ── Export Modal ── */
+  .arep-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,.45);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: arep-fadein .15s ease;
+  }
+  @keyframes arep-fadein { from { opacity: 0 } to { opacity: 1 } }
+
+  .arep-modal {
+    background: var(--bg-1, #fff);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.22);
+    overflow: hidden;
+    animation: arep-slideup .18s ease;
+  }
+  @keyframes arep-slideup { from { transform: translateY(12px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+  .arep-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .arep-modal-title { font-size: 16px; font-weight: 800; color: var(--txt); letter-spacing: -.02em; }
+  .arep-modal-sub   { font-size: 12px; color: var(--txt-3); margin-top: 3px; }
+  .arep-modal-close {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--txt-3);
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .arep-modal-close:hover { background: var(--bg-3); color: var(--txt); }
+
+  .arep-modal-body  { padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; }
+  .arep-modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  .arep-field-label {
+    font-size: 11px; font-weight: 700; color: var(--txt-3);
+    text-transform: uppercase; letter-spacing: .06em;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 7px;
+  }
+
+  .arep-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .arep-input {
+    width: 100%; height: 36px; padding: 0 11px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--txt); font-size: 13px; outline: none;
+    box-sizing: border-box;
+  }
+  .arep-input:focus { border-color: #2563EB; }
+
+  .arep-tipo-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .arep-tipo-chip {
+    padding: 4px 10px; border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-2); color: var(--txt-3);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all .12s; user-select: none;
+  }
+
+  .arep-preview-box {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: var(--txt-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .arep-preview-count { color: #2563EB; font-weight: 800; font-size: 16px; }
+
+  .arep-btn {
+    height: 36px; padding: 0 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .15s;
+  }
+  .arep-btn-cancel {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--txt-3);
+  }
+  .arep-btn-cancel:hover { background: var(--bg-3); color: var(--txt); }
+  .arep-btn-confirm {
+    background: #2563EB; border: 1px solid #2563EB; color: #fff;
+  }
+  .arep-btn-confirm:hover { background: #1d4ed8; }
 `;
+
 if (typeof document !== 'undefined' && !document.getElementById('arep-responsive-css')) {
   const s = document.createElement('style');
   s.id = 'arep-responsive-css';
@@ -73,16 +207,201 @@ function fmtDay(d) {
   return new Date(d).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function fmtDatetime(d) {
+  const date = new Date(d);
+  return date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    + ' ' + date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function movimientosToRows(movimientos) {
+  return movimientos.map(m => ({
+    'Fecha y hora':        fmtDatetime(m.fecha),
+    'Producto / Ítem':     m.item || '—',
+    'Tipo':                TIPOS[m.tipo]?.label || m.tipo || '—',
+    'Cantidad':            m.cantidad ?? '',
+    'Técnico':             m.tecnico_nombre || '—',
+    'Contrato':            m.contrato || '—',
+    'Abonado / Cliente':   m.abonado || '—',
+    'N° Servicio':         m.nServicio || '—',
+    'Sede origen':         m.sede_origen || '—',
+    'Sede destino':        m.sede_destino || '—',
+    'Comentario / Motivo': limpiarComentario(m.comentario) || m.motivo || '—',
+  }));
+}
+
+function exportToExcel(rows, filename) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 22 },
+    { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 35 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+  XLSX.writeFile(wb, filename);
+}
+
+function limpiarComentario(comentario) {
+  if (!comentario) return null;
+  if (/^Orden:\s*[0-9a-f-]{36}$/i.test(comentario.trim())) return null;
+  return comentario;
+}
+
+// ─── Export Modal ────────────────────────────────────────────────────────────
+function ExportModal({ movimientos, sedeNombre, onClose }) {
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [tecnico, setTecnico] = useState('');
+  const [tiposSeleccionados, setTiposSeleccionados] = useState(new Set());
+
+  const tecnicos = useMemo(() => {
+    const set = new Set();
+    movimientos.forEach(m => { if (m.tecnico_nombre) set.add(m.tecnico_nombre); });
+    return [...set].sort();
+  }, [movimientos]);
+
+  function toggleTipo(tipo) {
+    setTiposSeleccionados(prev => {
+      const next = new Set(prev);
+      if (next.has(tipo)) next.delete(tipo);
+      else next.add(tipo);
+      return next;
+    });
+  }
+
+  const preview = useMemo(() => {
+    return movimientos.filter(m => {
+      if (fechaDesde) {
+        const d = new Date(m.fecha); d.setHours(0,0,0,0);
+        if (d < new Date(fechaDesde + 'T00:00:00')) return false;
+      }
+      if (fechaHasta) {
+        const d = new Date(m.fecha); d.setHours(0,0,0,0);
+        if (d > new Date(fechaHasta + 'T00:00:00')) return false;
+      }
+      if (tecnico && m.tecnico_nombre !== tecnico) return false;
+      if (tiposSeleccionados.size > 0 && !tiposSeleccionados.has(m.tipo)) return false;
+      return true;
+    });
+  }, [movimientos, fechaDesde, fechaHasta, tecnico, tiposSeleccionados]);
+
+  function handleExport() {
+    if (preview.length === 0) return;
+    const rows = movimientosToRows(preview);
+    const parts = ['movimientos'];
+    if (fechaDesde || fechaHasta) parts.push(`${fechaDesde || ''}a${fechaHasta || ''}`);
+    if (tecnico) parts.push(tecnico.split(' ')[0]);
+    if (tiposSeleccionados.size > 0) parts.push([...tiposSeleccionados].map(t => TIPOS[t]?.label || t).join('-'));
+    parts.push(sedeNombre);
+    exportToExcel(rows, parts.join('_').replace(/\s+/g, '-') + '.xlsx');
+    onClose();
+  }
+
+  return (
+    <UIModal open={true} onClose={onClose} title="Exportar a Excel">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Fechas */}
+        <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Rango de fechas
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 4 }}>Desde</div>
+              <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+                max={fechaHasta || undefined}
+                style={{ width: '100%', height: 36, padding: '0 11px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--txt-3)', marginBottom: 4 }}>Hasta</div>
+              <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                min={fechaDesde || undefined}
+                style={{ width: '100%', height: 36, padding: '0 11px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Técnico */}
+        <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Técnico
+          </label>
+          <select value={tecnico} onChange={e => setTecnico(e.target.value)}
+            style={{ width: '100%', height: 36, padding: '0 11px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none' }}>
+            <option value="">Todos los técnicos</option>
+            {tecnicos.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+
+        {/* Tipos */}
+        <div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Tipo de movimiento
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <button
+              onClick={() => setTiposSeleccionados(new Set())}
+              style={{
+                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                border: '1.5px solid', transition: 'all .12s', userSelect: 'none',
+                ...(tiposSeleccionados.size === 0
+                  ? { background: '#EFF6FF', borderColor: '#93c5fd', color: '#2563EB' }
+                  : { background: 'var(--bg-2)', borderColor: 'var(--border)', color: 'var(--txt-3)' })
+              }}>
+              Todos
+            </button>
+            {Object.entries(TIPOS).map(([tipo, meta]) => {
+              const active = tiposSeleccionados.has(tipo);
+              return (
+                <button key={tipo} onClick={() => toggleTipo(tipo)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    border: '1.5px solid', transition: 'all .12s', userSelect: 'none',
+                    ...(active
+                      ? { background: meta.bg, borderColor: meta.border, color: meta.color }
+                      : { background: 'var(--bg-2)', borderColor: 'var(--border)', color: 'var(--txt-3)' })
+                  }}>
+                  {active ? '✓ ' : ''}{meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--txt-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#2563EB', fontWeight: 800, fontSize: 16 }}>{preview.length}</span>
+          <span>registro{preview.length !== 1 ? 's' : ''} se exportarán con estos filtros</span>
+        </div>
+
+        {/* Acciones */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+          <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+          <Btn
+            onClick={handleExport}
+            disabled={preview.length === 0}
+            icon={<FileDown size={15} />}
+          >
+            Exportar ({preview.length})
+          </Btn>
+        </div>
+
+      </div>
+    </UIModal>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function AdminAlmacenReportes() {
   const { sedeId, sedeNombre } = useMiSede();
   const [q, setQ] = useState('');
   const [activeTipo, setActiveTipo] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const { data: auditoria, isLoading } = useQuery({
     queryKey: ['admin-stock-auditoria', sedeId],
     enabled: Boolean(sedeId),
     queryFn: () => stockApi.auditoria({ sedeId }).then(r => r.data),
-
     staleTime: 30000,
   });
 
@@ -113,6 +432,11 @@ export default function AdminAlmacenReportes() {
     return map;
   }, [filtered]);
 
+  function handleExportTodo() {
+    const rows = movimientosToRows(movimientos);
+    exportToExcel(rows, `movimientos_todo_${sedeNombre}.xlsx`);
+  }
+
   if (isLoading) return (
     <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
       <Spinner size={28} />
@@ -121,16 +445,39 @@ export default function AdminAlmacenReportes() {
 
   return (
     <div style={{ padding: 28 }} className="animate-fade">
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          movimientos={movimientos}
+          sedeNombre={sedeNombre}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--txt)', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>Movimientos</h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--txt-2)' }}>Auditoría de stock de tu sede</p>
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
-          {sedeNombre}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Botón exportar filtrado → abre modal */}
+          <button className="arep-export-btn" onClick={() => setShowExportModal(true)}>
+            <Download size={14} />
+            Exportar filtrado
+          </button>
+          {/* Botón exportar todo (sin cambios) */}
+          <button className="arep-export-btn primary" onClick={handleExportTodo} title="Exportar todo el historial sin filtros">
+            <FileDown size={14} />
+            Exportar todo ({movimientos.length})
+          </button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
+            {sedeNombre}
+          </div>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="arep-stats" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         {Object.entries(TIPOS).map(([tipo]) => (
           <StatCard key={tipo} tipo={tipo} count={counts[tipo] || 0}
@@ -138,6 +485,7 @@ export default function AdminAlmacenReportes() {
         ))}
       </div>
 
+      {/* Filtros */}
       <div className="arep-filters" style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt-3)' }} />
@@ -153,8 +501,12 @@ export default function AdminAlmacenReportes() {
 
       <p style={{ fontSize: 13, color: 'var(--txt-3)', marginBottom: 16 }}>
         <strong style={{ color: 'var(--txt)' }}>{filtered.length}</strong> registro{filtered.length !== 1 ? 's' : ''}
+        {filtered.length !== movimientos.length && (
+          <span style={{ marginLeft: 6, color: 'var(--txt-3)' }}>de {movimientos.length} totales</span>
+        )}
       </p>
 
+      {/* Lista por día */}
       {Object.entries(byDay).map(([day, items]) => {
         const porTipo = {};
         items.forEach(m => { if (!porTipo[m.tipo]) porTipo[m.tipo] = []; porTipo[m.tipo].push(m); });
@@ -193,7 +545,12 @@ export default function AdminAlmacenReportes() {
                           👤 {m.tecnico_nombre}
                         </span>
                       )}
-                      {m.comentario || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
+                      {m.tipo === 'consumo' && m.contrato && (
+                        <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
+                          📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
+                        </span>
+                      )}
+                      {limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
                     </span>
                   </div>
                 ))}
@@ -216,8 +573,8 @@ export default function AdminAlmacenReportes() {
                       {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
                         <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
                       )}
-                      {(m.comentario || m.motivo) && (
-                        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{m.comentario || m.motivo}</div>
+                      {(limpiarComentario(m.comentario) || m.motivo) && (
+                        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
                       )}
                     </div>
                   ))}
