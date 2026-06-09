@@ -43,13 +43,13 @@ const S = {
   actions: { display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' },
   btn: (variant) => ({
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: '7px 14px', borderRadius: 8, border: 'none',
+    padding: '7px 14px', borderRadius: 8,
     cursor: 'pointer', fontSize: 12, fontWeight: 600,
     background: variant === 'green'  ? '#16a34a'
               : variant === 'red'    ? '#dc2626'
               : variant === 'ghost'  ? 'transparent'
               : 'var(--bg-3)',
-    color: variant === 'green' || variant === 'red' ? '#fff' : 'var(--txt-2)',
+    color:  variant === 'green' || variant === 'red' ? '#fff' : 'var(--txt-2)',
     border: variant === 'ghost' ? '1px solid var(--border-2)' : 'none',
   }),
   badge: (estado) => ({
