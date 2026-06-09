@@ -1,49 +1,47 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Wifi, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wifi, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { planesApi } from '../services/api';
 
-// ─── Estilos inline reutilizables ────────────────────────────
+const TIPOS = [
+  { value: 'INTERNET', label: 'Internet',      color: '#2563EB', bg: '#EFF6FF' },
+  { value: 'DUO',      label: 'Dúo (Int+Cable)', color: '#7C3AED', bg: '#F5F3FF' },
+  { value: 'CABLE',    label: 'Cable',          color: '#0891B2', bg: '#ECFEFF' },
+];
+
+const tipoInfo = (v) => TIPOS.find(t => t.value === v) || TIPOS[0];
+
 const S = {
-  page:    { padding: '24px', maxWidth: 780, margin: '0 auto' },
+  page:    { padding: '24px', maxWidth: 820, margin: '0 auto' },
   header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
   title:   { fontSize: 20, fontWeight: 700, color: 'var(--txt)', margin: 0 },
   sub:     { fontSize: 13, color: 'var(--txt-2)', marginTop: 4 },
+  section: { marginBottom: 28 },
+  sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
 
-  card:    {
+  card: {
     background: 'var(--bg-2)', border: '1px solid var(--border)',
-    borderRadius: 12, padding: '16px 20px',
-    display: 'flex', alignItems: 'center', gap: 16,
-    marginBottom: 10,
+    borderRadius: 12, padding: '14px 18px',
+    display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8,
   },
-  badge:   {
-    background: '#EFF6FF', color: '#2563EB',
-    borderRadius: 8, padding: '6px 12px',
-    fontWeight: 700, fontSize: 15, minWidth: 80, textAlign: 'center',
-  },
-  badgeInactive: {
-    background: 'var(--bg-3)', color: 'var(--txt-3)',
-    borderRadius: 8, padding: '6px 12px',
-    fontWeight: 700, fontSize: 15, minWidth: 80, textAlign: 'center',
-  },
+  badge: (tipo) => ({
+    background: tipoInfo(tipo).bg, color: tipoInfo(tipo).color,
+    borderRadius: 8, padding: '5px 11px',
+    fontWeight: 700, fontSize: 14, minWidth: 90, textAlign: 'center',
+    whiteSpace: 'nowrap',
+  }),
   info:    { flex: 1 },
   name:    { fontWeight: 600, fontSize: 14, color: 'var(--txt)' },
   precio:  { fontSize: 13, color: 'var(--txt-2)', marginTop: 2 },
   actions: { display: 'flex', gap: 6 },
 
-  btn: (variant = 'primary') => ({
+  btn: (v = 'primary') => ({
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: variant === 'icon' ? '7px' : '8px 16px',
-    borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13,
-    fontWeight: 500,
-    background: variant === 'primary' ? '#2563EB'
-              : variant === 'danger'  ? '#FEE2E2'
-              : variant === 'ghost'   ? 'transparent'
-              : 'var(--bg-3)',
-    color: variant === 'primary' ? '#fff'
-         : variant === 'danger'  ? '#DC2626'
-         : 'var(--txt-2)',
+    padding: '8px 16px', borderRadius: 8, border: 'none',
+    cursor: 'pointer', fontSize: 13, fontWeight: 500,
+    background: v === 'primary' ? '#2563EB' : v === 'danger' ? '#FEE2E2' : 'transparent',
+    color:      v === 'primary' ? '#fff'    : v === 'danger' ? '#DC2626' : 'var(--txt-2)',
   }),
 
   overlay: {
@@ -52,39 +50,40 @@ const S = {
   },
   modal: {
     background: 'var(--bg)', borderRadius: 14, padding: 28,
-    width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+    width: '100%', maxWidth: 440, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
   },
   modalTitle: { fontWeight: 700, fontSize: 16, marginBottom: 20, color: 'var(--txt)' },
-  label:      { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--txt-2)', marginBottom: 5 },
-  input:      {
+  label: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--txt-2)', marginBottom: 5 },
+  input: {
     width: '100%', boxSizing: 'border-box',
     background: 'var(--bg-2)', border: '1px solid var(--border)',
     borderRadius: 8, padding: '9px 12px', fontSize: 14, color: 'var(--txt)',
     outline: 'none', marginBottom: 14,
   },
-  row: { display: 'flex', gap: 12 },
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
-  empty: {
-    textAlign: 'center', padding: '48px 0', color: 'var(--txt-3)',
-    fontSize: 14,
+  select: {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--bg-2)', border: '1px solid var(--border)',
+    borderRadius: 8, padding: '9px 12px', fontSize: 14, color: 'var(--txt)',
+    outline: 'none', marginBottom: 14, cursor: 'pointer',
   },
+  row:          { display: 'flex', gap: 12 },
+  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
+  empty: { textAlign: 'center', padding: '48px 0', color: 'var(--txt-3)', fontSize: 14 },
 };
 
-const EMPTY_FORM = { nombre: '', mbps: '', precio: '' };
+const EMPTY_FORM = { nombre: '', mbps: '', precio: '', tipoServicio: 'INTERNET' };
 
 export default function PlanesPage() {
   const qc = useQueryClient();
-  const [modal, setModal]   = useState(null);  // null | 'crear' | 'editar'
+  const [modal, setModal]   = useState(null);
   const [form, setForm]     = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
 
-  // ── Queries ───────────────────────────────────────────────────
   const { data: planes = [], isLoading } = useQuery({
     queryKey: ['planes'],
     queryFn:  () => planesApi.listar().then(r => r.data),
   });
 
-  // ── Mutations ─────────────────────────────────────────────────
   const invalidate = () => qc.invalidateQueries({ queryKey: ['planes'] });
 
   const mutCrear = useMutation({
@@ -105,29 +104,19 @@ export default function PlanesPage() {
     onError:    (e) => toast.error(e.response?.data?.error || 'Error'),
   });
 
-  // ── Handlers ──────────────────────────────────────────────────
-  const abrirCrear = () => {
-    setForm(EMPTY_FORM);
-    setEditId(null);
-    setModal('crear');
-  };
-
+  const abrirCrear = () => { setForm(EMPTY_FORM); setEditId(null); setModal('crear'); };
   const abrirEditar = (plan) => {
-    setForm({ nombre: plan.nombre, mbps: String(plan.mbps), precio: String(plan.precio) });
+    setForm({ nombre: plan.nombre, mbps: String(plan.mbps), precio: String(plan.precio), tipoServicio: plan.tipoServicio });
     setEditId(plan.id);
     setModal('editar');
   };
-
   const cerrar = () => { setModal(null); setForm(EMPTY_FORM); setEditId(null); };
 
   const handleSubmit = () => {
-    const { nombre, mbps, precio } = form;
-    if (!nombre.trim() || !mbps || !precio)
-      return toast.error('Completa todos los campos');
-    if (isNaN(Number(mbps)) || isNaN(Number(precio)))
-      return toast.error('Mbps y precio deben ser números');
-
-    const data = { nombre: nombre.trim(), mbps: Number(mbps), precio: Number(precio) };
+    const { nombre, mbps, precio, tipoServicio } = form;
+    if (!nombre.trim() || !mbps || !precio) return toast.error('Completa todos los campos');
+    if (isNaN(Number(mbps)) || isNaN(Number(precio))) return toast.error('Mbps y precio deben ser números');
+    const data = { nombre: nombre.trim(), mbps: Number(mbps), precio: Number(precio), tipoServicio };
     if (modal === 'crear') mutCrear.mutate(data);
     else mutEditar.mutate({ id: editId, data });
   };
@@ -139,9 +128,16 @@ export default function PlanesPage() {
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // ── Render ────────────────────────────────────────────────────
   const activos   = planes.filter(p => p.activo);
   const inactivos = planes.filter(p => !p.activo);
+
+  // Agrupar activos por tipo
+  const porTipo = TIPOS.map(t => ({
+    ...t,
+    planes: activos.filter(p => p.tipoServicio === t.value),
+  })).filter(g => g.planes.length > 0);
+
+  const totalActivos = activos.length;
 
   return (
     <div style={S.page}>
@@ -156,60 +152,76 @@ export default function PlanesPage() {
         </button>
       </div>
 
-      {/* Lista */}
       {isLoading ? (
         <p style={S.empty}>Cargando...</p>
-      ) : activos.length === 0 && inactivos.length === 0 ? (
-      <div style={S.empty}>
-        <Wifi size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
-        <p>No hay planes creados aún.</p>
-        <p style={{ fontSize: 12 }}>Crea un plan para que el sistema asigne Mbps automáticamente al subir el Excel.</p>
-      </div>
-    ) : (
+      ) : totalActivos === 0 && inactivos.length === 0 ? (
+        <div style={S.empty}>
+          <Wifi size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+          <p>No hay planes creados aún.</p>
+          <p style={{ fontSize: 12 }}>Crea un plan para que el sistema asigne Mbps automáticamente al subir el Excel.</p>
+        </div>
+      ) : (
         <>
-          {activos.map(plan => (
-            <div key={plan.id} style={S.card}>
-              <div style={S.badge}>{plan.mbps} Mbps</div>
-              <div style={S.info}>
-                <div style={S.name}>{plan.nombre}</div>
-                <div style={S.precio}>S/ {Number(plan.precio).toFixed(2)} / mes</div>
-              </div>
-              <div style={S.actions}>
-                <button style={S.btn('ghost')} title="Editar" onClick={() => abrirEditar(plan)}>
-                  <Pencil size={15} />
-                </button>
-                <button style={S.btn('danger')} title="Desactivar" onClick={() => handleEliminar(plan)}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
+          {/* Planes activos agrupados por tipo */}
+          {porTipo.map(grupo => (
+            <div key={grupo.value} style={S.section}>
+              <p style={S.sectionTitle}>{grupo.label}</p>
+              {grupo.planes.map(plan => (
+                <div key={plan.id} style={S.card}>
+                  <div style={S.badge(plan.tipoServicio)}>{plan.mbps} Mbps</div>
+                  <div style={S.info}>
+                    <div style={S.name}>{plan.nombre}</div>
+                    <div style={S.precio}>S/ {Number(plan.precio).toFixed(2)} / mes</div>
+                  </div>
+                  <div style={S.actions}>
+                    <button style={S.btn('ghost')} title="Editar" onClick={() => abrirEditar(plan)}>
+                      <Pencil size={15} />
+                    </button>
+                    <button style={S.btn('danger')} title="Desactivar" onClick={() => handleEliminar(plan)}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
 
+          {/* Inactivos */}
           {inactivos.length > 0 && (
-            <>
-              <p style={{ fontSize: 12, color: 'var(--txt-3)', marginTop: 20, marginBottom: 8 }}>Inactivos</p>
+            <div style={S.section}>
+              <p style={S.sectionTitle}>Inactivos</p>
               {inactivos.map(plan => (
                 <div key={plan.id} style={{ ...S.card, opacity: 0.5 }}>
-                  <div style={S.badgeInactive}>{plan.mbps} Mbps</div>
+                  <div style={{ ...S.badge(plan.tipoServicio), background: 'var(--bg-3)', color: 'var(--txt-3)' }}>
+                    {plan.mbps} Mbps
+                  </div>
                   <div style={S.info}>
                     <div style={S.name}>{plan.nombre}</div>
-                    <div style={S.precio}>S/ {Number(plan.precio).toFixed(2)} / mes · <em>inactivo</em></div>
+                    <div style={S.precio}>
+                      S/ {Number(plan.precio).toFixed(2)} / mes · {tipoInfo(plan.tipoServicio).label} · <em>inactivo</em>
+                    </div>
                   </div>
-                  <button style={S.btn('ghost')} title="Reactivar" onClick={() => mutEditar.mutate({ id: plan.id, data: { activo: true } })}>
+                  <button style={S.btn('ghost')} title="Reactivar"
+                    onClick={() => mutEditar.mutate({ id: plan.id, data: { activo: true } })}>
                     <CheckCircle size={15} color="#16a34a" />
                   </button>
                 </div>
               ))}
-            </>
+            </div>
           )}
         </>
       )}
 
-      {/* Modal crear/editar */}
+      {/* Modal */}
       {modal && (
         <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && cerrar()}>
           <div style={S.modal}>
             <p style={S.modalTitle}>{modal === 'crear' ? 'Nuevo plan' : 'Editar plan'}</p>
+
+            <label style={S.label}>Tipo de servicio</label>
+            <select style={S.select} value={form.tipoServicio} onChange={set('tipoServicio')}>
+              {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
 
             <label style={S.label}>Nombre del plan</label>
             <input style={S.input} placeholder="Plan 250 Mbps" value={form.nombre} onChange={set('nombre')} />
@@ -227,11 +239,8 @@ export default function PlanesPage() {
 
             <div style={S.modalActions}>
               <button style={S.btn('ghost')} onClick={cerrar}>Cancelar</button>
-              <button
-                style={S.btn('primary')}
-                onClick={handleSubmit}
-                disabled={mutCrear.isPending || mutEditar.isPending}
-              >
+              <button style={S.btn('primary')} onClick={handleSubmit}
+                disabled={mutCrear.isPending || mutEditar.isPending}>
                 {mutCrear.isPending || mutEditar.isPending ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
