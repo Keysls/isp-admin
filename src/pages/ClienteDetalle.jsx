@@ -124,6 +124,10 @@ export default function ClienteDetalle() {
         <Field icon={<MapPin size={12}/>}      label="Dirección"  value={c.direccion}              onCopy={() => copiar(c.direccion, 'Dirección copiada')}/>
         <Field icon={<MapPin size={12}/>}      label="Referencia" value={c.referencia || '—'}/>
         <Field icon={<MapPin size={12}/>}      label="Sector"     value={c.sector     || '—'}/>
+        {c.precinto && (
+          <Field icon={<MapPin size={12}/>} label="Precinto" value={c.precinto} mono
+            onCopy={() => copiar(c.precinto, 'Precinto copiado')}/>
+        )}
         {c.mbps && (
           <Field icon={<Wifi size={12}/>} label="Plan" value={`${c.planNombre ? c.planNombre + '  ' : ''}`}/>
         )}

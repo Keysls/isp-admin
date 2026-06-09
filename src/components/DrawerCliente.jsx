@@ -170,6 +170,10 @@ export default function DrawerCliente({ numero, onCerrar }) {
                     <FilaDato label="Teléfono" value={c.celular || '—'} mono/>
                     {c.referencia && <FilaDato label="Referencia" value={c.referencia}/>}
                     {c.sector && <FilaDato label="Sector" value={c.sector}/>}
+                    {c.precinto && <FilaDato label="Precinto" value={c.precinto} mono/>}
+                    {c.contratoRef?.precinto && (
+                      <FilaDato label="Precinto" value={c.contratoRef.precinto} mono/>
+                    )}
                     {c.mbps && (
                       <FilaDato label="Plan" value={`${c.planNombre || ''}`}/>
                     )}
