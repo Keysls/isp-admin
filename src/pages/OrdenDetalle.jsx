@@ -220,6 +220,9 @@ export default function OrdenDetalle() {
           <InfoFila label="Dirección"  value={orden.direccion} />
           <InfoFila label="Referencia" value={orden.referencia} />
           <InfoFila label="Sector"     value={orden.sector} />
+          {(orden.plan?.nombre || orden.mbps) && (
+              <InfoFila label="Plan" value={orden.plan?.nombre || `${orden.mbps} Mbps`} />
+            )}
           {orden.observacion && (
             <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--yellow-bg)', borderRadius: 8, fontSize: 12, color: 'var(--yellow)', borderLeft: '3px solid var(--yellow)' }}>
               {orden.observacion}
@@ -437,6 +440,7 @@ export default function OrdenDetalle() {
                 ['Dirección',  orden.direccion],
                 ['Referencia', orden.referencia],
                 ['Sector',     orden.sector],
+                ['Plan', orden.plan?.nombre || (orden.mbps ? `${orden.mbps} Mbps` : null)],
                 ['Observación',orden.observacion],
               ]}
             />

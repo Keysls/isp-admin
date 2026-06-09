@@ -5,9 +5,8 @@ import toast from 'react-hot-toast';
 import { planesApi } from '../services/api';
 
 const TIPOS = [
-  { value: 'INTERNET', label: 'Internet',      color: '#2563EB', bg: '#EFF6FF' },
+  { value: 'INTERNET', label: 'Internet',        color: '#2563EB', bg: '#EFF6FF' },
   { value: 'DUO',      label: 'Dúo (Int+Cable)', color: '#7C3AED', bg: '#F5F3FF' },
-  { value: 'CABLE',    label: 'Cable',          color: '#0891B2', bg: '#ECFEFF' },
 ];
 
 const tipoInfo = (v) => TIPOS.find(t => t.value === v) || TIPOS[0];

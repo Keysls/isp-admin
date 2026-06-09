@@ -169,7 +169,10 @@ export default function DrawerCliente({ numero, onCerrar }) {
                     <FilaDato label="DNI"      value={c.dni || '—'} mono/>
                     <FilaDato label="Teléfono" value={c.celular || '—'} mono/>
                     {c.referencia && <FilaDato label="Referencia" value={c.referencia}/>}
-                    {c.sector     && <FilaDato label="Sector"     value={c.sector}/>}
+                    {c.sector && <FilaDato label="Sector" value={c.sector}/>}
+                    {c.mbps && (
+                      <FilaDato label="Plan" value={`${c.planNombre || ''}`}/>
+                    )}
                     {c.sede && (
                       <FilaDato label="Sede" value={`${c.sede.nombre}${c.sede.ciudad ? ' · ' + c.sede.ciudad : ''}`} last/>
                     )}

@@ -87,6 +87,18 @@ function ClienteCard({ c, eColor, eLabel, onClick }) {
         {c.dni    && <span>DNI: {c.dni}</span>}
         {c.celular && <span>📱 {c.celular}</span>}
       </div>
+      {c.mbps && (
+        <div style={{ marginTop: 4, marginBottom: 4 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 8px', borderRadius: 4,
+            background: '#EFF6FF', color: '#2563EB',
+            fontSize: 11, fontWeight: 700,
+          }}>
+            {c.mbps} Mbps
+          </span>
+        </div>
+      )}
 
       {/* Última actividad */}
       {c.ultimaActividad && (
@@ -231,7 +243,7 @@ function ModalImportarContratos({ open, onClose }) {
             <table style={{ width: '100%', minWidth: isMobile ? 480 : 'auto', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: 'var(--bg-3)' }}>
-                  {['N° Contrato','Abonado','DNI','Dirección','Servicio'].map(h => (
+                  {['N° Contrato','Abonado','DNI','Dirección','Servicio','Plan'].map(h => (
                     <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--txt-3)', fontWeight: 600, fontSize: 11, borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -244,6 +256,20 @@ function ModalImportarContratos({ open, onClose }) {
                     <td style={{ padding: '7px 12px', color: 'var(--txt-2)', whiteSpace: 'nowrap' }}>{c.dni || '—'}</td>
                     <td style={{ padding: '7px 12px', color: 'var(--txt-2)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.direccion}</td>
                     <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', color: 'var(--txt-3)' }}>{c.tipoServicio || '—'}</td>
+                    <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
+                    {c.mbps ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '2px 8px', borderRadius: 4,
+                        background: '#EFF6FF', color: '#2563EB',
+                        fontSize: 11, fontWeight: 700,
+                      }}>
+                        {c.mbps} Mbps
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--txt-3)' }}>—</span>
+                    )}
+                  </td>
                   </tr>
                 ))}
               </tbody>
@@ -439,7 +465,7 @@ export default function ClientesPage() {
           </div>
         ) : (
           /* ── Desktop: tabla original sin cambios ── */
-          <Table loading={isLoading} headers={['N° Contrato', 'Abonado', 'DNI', 'Dirección / Sector', 'Celular', 'Estado', 'Última actividad', '']}>
+          <Table loading={isLoading} headers={['N° Contrato', 'Abonado', 'DNI', 'Dirección / Sector', 'Celular', 'Plan', 'Estado', 'Última actividad', '']}>
             {contratos.length === 0 && !isLoading ? (
               <tr><td colSpan={8}>
                 <Empty icon="🔍" title="Sin clientes" subtitle={busqueda || filtroEstado ? "Prueba ajustando los filtros" : "Aún no hay contratos registrados"} />
@@ -466,6 +492,20 @@ export default function ClientesPage() {
                   </Td>
                   <Td style={{ fontSize: 12, fontFamily: 'var(--font-display)' }}>
                     {c.celular || <span style={{ color: 'var(--txt-3)' }}>—</span>}
+                  </Td>
+                  <Td>
+                    {c.mbps ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '2px 8px', borderRadius: 4,
+                        background: '#EFF6FF', color: '#2563EB',
+                        fontSize: 11, fontWeight: 700,
+                      }}>
+                        {c.mbps} Mbps
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>—</span>
+                    )}
                   </Td>
                   <Td>
                     <span style={{
