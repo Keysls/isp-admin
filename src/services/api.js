@@ -139,6 +139,13 @@ export const onusApi = {
   actualizarCodigo:(id, data)  => api.patch(`/onus/${id}/codigo`, data),
 };
  
+export const planesApi = {
+  listar:     ()           => api.get('/planes'),
+  crear:      (data)       => api.post('/planes', data),
+  actualizar: (id, data)   => api.put(`/planes/${id}`, data),
+  eliminar:   (id)         => api.delete(`/planes/${id}`),
+};
+ 
 
 
 export default api;

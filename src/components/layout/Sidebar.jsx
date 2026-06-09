@@ -1,9 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard, ClipboardList, Contact, Users,
-  BarChart2, Map, Package, UserCog,
-} from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Contact, Users, BarChart2, Map, Package, UserCog, Wifi } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 
 const NAV_PRINCIPAL = [
@@ -12,6 +9,7 @@ const NAV_PRINCIPAL = [
   { to: '/clientes', label: 'Clientes',  icon: Contact         },
   { to: '/mapa',     label: 'Mapa',      icon: Map             },
   { to: '/reportes', label: 'Reportes',  icon: BarChart2       },
+  { to: '/planes',   label: 'Planes',    icon: Wifi            },
 ];
 
 const NAV_ALMACEN = [

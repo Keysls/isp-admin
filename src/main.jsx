@@ -19,6 +19,7 @@ import ReportesPage      from './pages/Reportes';
 import PerfilPage        from './pages/Perfil';
 import MapaPage          from './pages/Mapa';
 import ProgramarPage     from './pages/Programar'; //SE AGREGO
+import PlanesPage from './pages/Planes';
 // Nota: La página Usuarios.jsx ya no se usa en el panel admin.
 // El admin solo gestiona técnicos (desde /tecnicos).
 // La creación de admins y operadores NOC es exclusiva del SUPERADMIN (panel NOC).
@@ -61,6 +62,7 @@ function App() {
                 <Route path="/almacen"             element={<AdminAlmacenDashboard />} />
                 <Route path="/almacen/inventario"  element={<AdminAlmacenInventario />}/>
                 <Route path="/almacen/reportes"    element={<AdminAlmacenReportes />}  />
+                <Route path="/planes"             element={<PlanesPage />} />
                 <Route path="*"                  element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>
