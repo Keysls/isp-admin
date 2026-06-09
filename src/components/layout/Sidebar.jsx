@@ -15,7 +15,8 @@ const NAV_PRINCIPAL = [
 const NAV_ALMACEN = [
   { to: '/almacen',            label: 'Dashboard',  icon: LayoutDashboard },
   { to: '/almacen/inventario', label: 'Inventario', icon: Package         },
-  { to: '/almacen/reportes',   label: 'Reportes',   icon: BarChart2       },
+  { to: '/almacen/devoluciones', label: 'Devoluciones', icon: ArrowDownToLine },
+    { to: '/almacen/reportes',   label: 'Reportes',   icon: BarChart2       },
 ];
 
 const NAV_PERSONAL = [

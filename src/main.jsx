@@ -27,6 +27,7 @@ import PlanesPage from './pages/Planes';
 import AdminAlmacenDashboard  from './pages/almacen/Dashboard';
 import AdminAlmacenInventario from './pages/almacen/Inventario';
 import AdminAlmacenReportes   from './pages/almacen/Reportes';
+import DevolucionesPage from './pages/Devoluciones';
  
 
 const qc = new QueryClient({
@@ -63,6 +64,8 @@ function App() {
                 <Route path="/almacen/inventario"  element={<AdminAlmacenInventario />}/>
                 <Route path="/almacen/reportes"    element={<AdminAlmacenReportes />}  />
                 <Route path="/planes"             element={<PlanesPage />} />
+                <Route path="/almacen/devoluciones" element={<DevolucionesPage />} />
+
                 <Route path="*"                  element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>

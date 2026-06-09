@@ -130,7 +130,13 @@ export const stockApi = {
   confirmarEnvio:         (id)             => api.post(`/stock/envios/${id}/confirmar`),
   cancelarEnvio:          (id, { motivo }) => api.post(`/stock/envios/${id}/cancelar`, { motivo }),
   enviarSede:             (data)           => api.post('/stock/enviar-sede', data),
+  // ── Devoluciones ─────────────────────────────────────────
+  listarDevoluciones: (params)       => api.get('/stock/devoluciones', { params }),
+  aprobarDevolucion:  (id)           => api.post(`/stock/devoluciones/${id}/aprobar`),
+  rechazarDevolucion: (id, data)     => api.post(`/stock/devoluciones/${id}/rechazar`, data),
+  revisarRecojo:      (id, data)     => api.post(`/stock/recojos/${id}/revisar`, data),
 };
+ 
  
 export const onusApi = {
   listar:          (params)    => api.get('/onus', { params }),
