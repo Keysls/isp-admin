@@ -72,7 +72,13 @@ function categoriaBadgeStyle(cat) {
 
 function useMiSede() {
   const usuario = useAuthStore(s => s.usuario);
-  return { usuario, sedeId: usuario?.sedeId, sedeNombre: usuario?.sede?.nombre || 'Mi sede', puedeEnviarStock: usuario?.sede?.puedeEnviarStock || false };
+  return {
+    usuario,
+    sedeId: usuario?.sedeId,
+    sedeNombre: usuario?.sede?.nombre || 'Mi sede',
+    puedeEnviarStock: usuario?.sede?.puedeEnviarStock || false,
+    esPrincipal: usuario?.sede?.esPrincipal || false,  // ← AGREGAR
+  };
 }
 
 function isOnuProduct(p) {
@@ -253,7 +259,7 @@ function OnuEditRow({ onu, onSave }) {
 
 export default function AdminAlmacenInventario() {
   const qc = useQueryClient();
-  const { sedeId, sedeNombre, puedeEnviarStock } = useMiSede();
+  const { sedeId, sedeNombre, puedeEnviarStock, esPrincipal } = useMiSede();
   const [q, setQ] = useState('');
   const qDebounced = useDebounce(q);  
   const [modal, setModal] = useState(null);
@@ -314,8 +320,26 @@ export default function AdminAlmacenInventario() {
   });
   const confirmarEnvioM = useMutation({ mutationFn: (id) => stockApi.confirmarEnvio(id), onSuccess: () => { toast.success('Envío confirmado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar') });
   const cancelarEnvioM  = useMutation({ mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }), onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar') });
-  const enviarStockM    = useMutation({
-    mutationFn: () => stockApi.enviarSede({ sedeId, sedeDestinoId: envio.sede_destino_id, guia: envio.guia, comentario: envio.comentario, items: envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0) }),
+  const enviarStockM = useMutation({
+  mutationFn: () => {
+    const itemsNormales = envio.items.filter(i => {
+      const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+      const esOnu = !esPrincipal && isOnuProduct(prod || {});
+      return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
+    });
+    const onuIds = itemsNormales.flatMap(i => i.onu_ids || []);
+    const itemsSoloNormales = itemsNormales
+      .filter(i => !(!esPrincipal && isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})))
+      .map(({ onu_ids, ...rest }) => rest);
+    return stockApi.enviarSede({
+      sedeId,
+      sedeDestinoId: envio.sede_destino_id,
+      guia: envio.guia,
+      comentario: envio.comentario,
+      items: itemsSoloNormales,
+      onu_ids: onuIds,
+    });
+  },
     onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
@@ -731,27 +755,56 @@ export default function AdminAlmacenInventario() {
             <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 16, paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Productos a enviar</div>
               <ProductSearch label="Buscar producto" search={envioSearch} setSearch={setEnvioSearch} products={stock.filter(s => s.cantidad > 0)} selected={envio.items} onAdd={p => setEnvio({ ...envio, items: [...envio.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
-              <ItemsList stock={stock} items={envio.items} setItems={items => setEnvio({ ...envio, items })} showDisponible={true} />
+              <ItemsList
+                stock={stock}
+                items={envio.items}
+                setItems={items => setEnvio({ ...envio, items })}
+                showDisponible={true}
+                sedeId={esPrincipal ? undefined : sedeId}
+              />
             </div>
             <div style={{ marginBottom: 16 }}>
               <Input label="Comentario (opcional)" value={envio.comentario} onChange={e => setEnvio({ ...envio, comentario: e.target.value })} placeholder="Instrucciones, observaciones..." />
             </div>
-            {envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length > 0 && (
+            {envio.items.some(i => {
+                const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+                const esOnu = !esPrincipal && isOnuProduct(prod || {});
+                return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
+              }) && (
               <div style={{ padding: '10px 14px', background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <Package size={15} style={{ color: '#2563EB', marginTop: 1, flexShrink: 0 }} />
                 <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.6 }}>
                   <strong style={{ color: 'var(--txt)', display: 'block', marginBottom: 2 }}>Resumen del envío</strong>
-                  {envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).map((i, idx) => {
+                  {envio.items.map((i, idx) => {
                     const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-                    return <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}><span style={{ fontWeight: 700, color: '#2563EB', fontFamily: 'var(--font-mono)' }}>{i.cantidad}×</span>{prod?.producto || '?'}</span>;
+                    const esOnu = !esPrincipal && isOnuProduct(prod || {});
+                    const cant = esOnu ? (i.onu_ids || []).length : Number(i.cantidad);
+                    if (cant <= 0) return null;
+                    return <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
+                      <span style={{ fontWeight: 700, color: '#2563EB', fontFamily: 'var(--font-mono)' }}>{cant}×</span>{prod?.producto || '?'}
+                    </span>;
                   })}
                 </div>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn variant="blue" onClick={() => enviarStockM.mutate()} disabled={!envio.sede_destino_id || !envio.guia.trim() || envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0 || enviarStockM.isPending} icon={<Send size={15} />} style={{ fontWeight: 700 }}>
-                Confirmar envío ({envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length} productos)
+              <Btn onClick={() => enviarStockM.mutate()} disabled={
+                !envio.sede_destino_id ||
+                !envio.guia.trim() ||
+                !envio.items.some(i => {
+                  const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+                  const esOnu = !esPrincipal && isOnuProduct(prod || {});
+                  return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
+                }) ||
+                enviarStockM.isPending
+              }  icon={<Send size={15} />} style={{ fontWeight: 700, background: '#185FA5', color: '#fff', border: 'none' }}>
+                Confirmar envío ({envio.items.reduce((total, i) => {
+                  const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+                  const esOnu = !esPrincipal && isOnuProduct(prod || {});
+                  const cant = esOnu ? (i.onu_ids || []).length : Number(i.cantidad) || 0;
+                  return total + cant;
+                }, 0)} productos)
               </Btn>
             </div>
           </div>
