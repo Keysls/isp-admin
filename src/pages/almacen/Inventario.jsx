@@ -1,10 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-// En los imports de lucide-react, agrega FileDown:
-import { Check, FileDown, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
+import { Check, FileDown, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';
+import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner, Btn, Input, Select, Badge, Modal as UIModal } from '../../components/ui';
+
+function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = React.useState(value);
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
 
 const CSS = `
   .ainv-btns    { flex-wrap: wrap; }
@@ -36,12 +46,28 @@ const CSS = `
     justify-content: space-between;
     gap: 8px;
   }
+  .ainv-row-hover:hover { background: var(--bg-3); }
 `;
 if (typeof document !== 'undefined' && !document.getElementById('ainv-responsive-css')) {
   const s = document.createElement('style');
   s.id = 'ainv-responsive-css';
   s.textContent = CSS;
   document.head.appendChild(s);
+}
+
+const CATEGORIA_COLORS = {
+  'rollo':           { bg: '#E6F1FB', color: '#0C447C' },
+  'pasivos':         { bg: '#EEEDFE', color: '#3C3489' },
+  'infraestructura': { bg: '#FAEEDA', color: '#633806' },
+  'activos':         { bg: '#E1F5EE', color: '#085041' },
+  'onu':             { bg: '#E1F5EE', color: '#085041' },
+};
+function categoriaBadgeStyle(cat) {
+  const key = (cat || '').toLowerCase();
+  for (const [k, v] of Object.entries(CATEGORIA_COLORS)) {
+    if (key.includes(k)) return v;
+  }
+  return { bg: 'var(--bg-3)', color: 'var(--txt-2)' };
 }
 
 function useMiSede() {
@@ -53,66 +79,37 @@ function isOnuProduct(p) {
   return `${p.categoria || ''} ${p.producto || p.nombre || ''}`.toLowerCase().includes('onu');
 }
 
-function Header({ title, subtitle, right }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-      <div>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--txt)', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>{title}</h1>
-        {subtitle && <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--txt-2)' }}>{subtitle}</p>}
-      </div>
-      {right}
-    </div>
-  );
-}
-
 function SedeBadge({ sedeNombre }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
       {sedeNombre}
     </div>
   );
 }
 
 function StockBar({ stock, minimo }) {
-  if (!minimo) return <strong style={{ color: 'var(--txt)' }}>{stock}</strong>;
-  const pct = Math.min(100, Math.round((stock / (minimo * 3)) * 100));
-  const low = stock <= minimo;
+  if (!minimo) return <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color: 'var(--txt)' }}>{stock}</span>;
+  const low  = stock <= minimo;
   const warn = stock <= minimo * 1.5;
-  const color = low ? 'var(--red)' : warn ? '#D97706' : '#16A34A';
-  return (
-    <div>
-      <div style={{ fontWeight: 800, color, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{stock}</div>
-      <div style={{ width: 76, height: 5, background: 'var(--border)', borderRadius: 999, marginTop: 4 }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.3s ease' }} />
-      </div>
-    </div>
-  );
+  const color = low ? '#A32D2D' : warn ? '#854F0B' : '#3B6D11';
+  return <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color }}>{stock}</span>;
 }
 
-/** Metros disponibles — solo para productos medibles (ej: rollos de fibra) */
 function MetrosCell({ p }) {
-  if (!p.es_medible || !p.metros_por_unidad) return null;
+  if (!p.es_medible || !p.metros_por_unidad) return <span style={{ color: 'var(--txt-3)', fontSize: 13 }}>—</span>;
   const metros = p.cantidad * p.metros_por_unidad;
   const minimoMetros = (p.stock_minimo || 0) * p.metros_por_unidad;
-  const low   = minimoMetros > 0 && metros <= minimoMetros;
-  const warn  = minimoMetros > 0 && metros <= minimoMetros * 1.5;
-  const color = metros === 0 ? 'var(--red)' : low ? 'var(--red)' : warn ? '#D97706' : '#16A34A';
+  const low  = minimoMetros > 0 && metros <= minimoMetros;
+  const warn = minimoMetros > 0 && metros <= minimoMetros * 1.5;
+  const color = metros === 0 ? '#A32D2D' : low ? '#A32D2D' : warn ? '#854F0B' : '#185FA5';
   return (
     <div>
-      <span style={{ fontWeight: 700, color, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-        {metros.toLocaleString()}
+      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color }}>
+        {metros.toLocaleString()}m
       </span>
-      <span style={{ fontSize: 10, color: 'var(--txt-3)', marginLeft: 3 }}>m</span>
-      <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>× {p.metros_por_unidad.toLocaleString()} m/u</div>
-    </div>
-  );
-}
-
-function Toolbar({ q, setQ }) {
-  return (
-    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <Search size={16} color="var(--txt-3)" />
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre o código..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--txt)' }} />
+      <div style={{ fontSize: 10, color: 'var(--txt-3)', marginTop: 2 }}>
+        {p.metros_por_unidad.toLocaleString()}m/{p.unidad || 'u'}
+      </div>
     </div>
   );
 }
@@ -146,7 +143,7 @@ function ProductSearch({ label, search, setSearch, products, selected, onAdd }) 
   );
 }
 
-function ItemsList({ stock, items, setItems, showDisponible = true, sedeId }) {
+function ItemsList({ stock, items, setItems, showDisponible = true, sedeId, allowOnu = true }) {
   const update = (idx, key, value) => setItems(items.map((it, i) => i === idx ? { ...it, [key]: value } : it));
   const remove = idx => setItems(items.filter((_, i) => i !== idx));
   return (
@@ -156,7 +153,7 @@ function ItemsList({ stock, items, setItems, showDisponible = true, sedeId }) {
         {items.length === 0 && <div style={{ color: 'var(--txt-3)', fontSize: 13, padding: '8px 0' }}>Busca y selecciona productos.</div>}
         {items.map((item, idx) => {
           const prod = stock.find(s => String(s.producto_id) === String(item.producto_id));
-          const esOnu = isOnuProduct(prod || {});
+          const esOnu = allowOnu && isOnuProduct(prod || {});
           return (
             <div key={idx}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px auto', gap: 8, alignItems: 'center', padding: 8, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)' }}>
@@ -220,10 +217,45 @@ function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
   );
 }
 
+function OnuEditRow({ onu, onSave }) {
+  const [editando, setEditando] = React.useState(false);
+  const [valor,    setValor]    = React.useState(onu.codigo_pon || '');
+  const [loading,  setLoading]  = React.useState(false);
+  const guardar = async () => {
+    if (!valor.trim() || valor === onu.codigo_pon) { setEditando(false); return; }
+    setLoading(true);
+    try { await onSave(onu.id, valor.trim().toUpperCase()); setEditando(false); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: editando ? '0.5px solid #1D9E75' : '0.5px solid var(--border)', background: editando ? '#E1F5EE' : 'var(--bg-card)', transition: 'all .15s' }}>
+      <Wifi size={15} style={{ color: editando ? '#0F6E56' : 'var(--txt-3)', flexShrink: 0 }} />
+      {editando ? (
+        <>
+          <input autoFocus value={valor} onChange={e => setValor(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter') guardar(); if (e.key === 'Escape') setEditando(false); }} style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, fontFamily: 'var(--font-mono)', color: '#085041' }} />
+          <button onClick={guardar} disabled={loading} style={{ fontSize: 12, color: '#0F6E56', display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', background: '#9FE1CB', border: 'none', fontWeight: 600 }}>
+            <Check size={13} /> {loading ? '...' : 'Guardar'}
+          </button>
+          <button onClick={() => { setValor(onu.codigo_pon); setEditando(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0F6E56', padding: 4 }}>
+            <X size={13} />
+          </button>
+        </>
+      ) : (
+        <>
+          <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{onu.codigo_pon}</span>
+          <span style={{ fontSize: 11, color: 'var(--txt-3)', background: 'var(--bg-3)', padding: '2px 8px', borderRadius: 6 }}>{onu.tecnico_id ? (onu.tecnico || 'Técnico') : 'En sede'}</span>
+          <button onClick={() => setEditando(true)} style={{ fontSize: 12, color: 'var(--txt-3)', display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', background: 'none', border: '0.5px solid var(--border)' }}>✏ Editar</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminAlmacenInventario() {
   const qc = useQueryClient();
   const { sedeId, sedeNombre, puedeEnviarStock } = useMiSede();
   const [q, setQ] = useState('');
+  const qDebounced = useDebounce(q);  
   const [modal, setModal] = useState(null);
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
@@ -237,18 +269,19 @@ export default function AdminAlmacenInventario() {
   const [envio, setEnvio] = useState({ sede_destino_id: '', guia: '', comentario: '', items: [] });
   const [envioSearch, setEnvioSearch] = useState('');
 
-  const stockQ = useQuery({ queryKey: ['admin-stock-sede', sedeId, q], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: q || undefined }).then(r => r.data) });
-  const productosQ = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
-  const tecnicosQ = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
+  const stockQ = useQuery({ queryKey: ['admin-stock-sede', sedeId, qDebounced], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data) });
+  const productosQ      = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
+  const tecnicosQ       = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
   const enviosPendientesQ = useQuery({ queryKey: ['envios-pendientes', sedeId], enabled: Boolean(sedeId), queryFn: () => stockApi.listarEnviosPendientes({ sedeId }).then(r => r.data) });
-  const sedesQ = useQuery({ queryKey: ['sedes-para-envio'], queryFn: () => sedesApi.listarParaEnvio().then(r => r.data) });
+  const sedesQ          = useQuery({ queryKey: ['sedes-para-envio'], queryFn: () => sedesApi.listarParaEnvio().then(r => r.data) });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['admin-stock-sede'] });
     qc.invalidateQueries({ queryKey: ['admin-stock-stats'] });
     qc.invalidateQueries({ queryKey: ['admin-stock-auditoria'] });
     qc.invalidateQueries({ queryKey: ['onus-panel-inline'] });
+    qc.invalidateQueries({ queryKey: ['onus-existentes'] });
   };
 
   const entradaItemsValidos = entrada.items.filter(i => i.producto_id && Number(i.cantidad) > 0);
@@ -279,54 +312,39 @@ export default function AdminAlmacenInventario() {
     onSuccess: (results) => { toast.success(`${results.length} ONU${results.length !== 1 ? 's' : ''} registrada${results.length !== 1 ? 's' : ''}`); setOnuForm({ producto_id: '', codigos_pon: [''] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la ONU'),
   });
-  const confirmarEnvioM = useMutation({ mutationFn: (id) => stockApi.confirmarEnvio(id), onSuccess: () => { toast.success('Envío confirmado, stock actualizado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar') });
-  const cancelarEnvioM = useMutation({ mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }), onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar') });
-  const enviarStockM = useMutation({
+  const confirmarEnvioM = useMutation({ mutationFn: (id) => stockApi.confirmarEnvio(id), onSuccess: () => { toast.success('Envío confirmado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar') });
+  const cancelarEnvioM  = useMutation({ mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }), onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar') });
+  const enviarStockM    = useMutation({
     mutationFn: () => stockApi.enviarSede({ sedeId, sedeDestinoId: envio.sede_destino_id, guia: envio.guia, comentario: envio.comentario, items: envio.items.filter(i => i.producto_id && Number(i.cantidad) > 0) }),
-    onSuccess: () => { toast.success('Envío registrado correctamente'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
+    onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
 
-  const rows = stockQ.data || [];
-  const productos = productosQ.data || [];
-  const stock = stockQ.data || [];
+  const rows       = stockQ.data || [];
+  const productos  = productosQ.data || [];
+  const stock      = stockQ.data || [];
   const productosOnu = stock.filter(s => s.cantidad > 0 && isOnuProduct(s));
-  const hayMedibles = rows.some(p => p.es_medible);
+  const hayMedibles  = rows.some(p => p.es_medible);
 
   const exportarExcel = () => {
-  const datos = rows.map(p => {
-    const metros = p.es_medible && p.metros_por_unidad ? p.cantidad * p.metros_por_unidad : null;
-    const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
-    return {
-      'Código':             p.codigo || '—',
-      'Producto':           p.producto,
-      'Categoría':          p.categoria || '—',
-      'Unidad':             p.unidad || '—',
-      'Stock':              p.cantidad,
-      'Metros disponibles': metros !== null ? metros : '—',
-      'Estado':             low ? 'Bajo stock' : 'Disponible',
-    };
-  });
-
-  import('xlsx').then(XLSX => {
-    const ws = XLSX.utils.json_to_sheet(datos);
-
-    // Anchos de columna
-    ws['!cols'] = [
-      { wch: 14 }, // Código
-      { wch: 32 }, // Producto
-      { wch: 18 }, // Categoría
-      { wch: 12 }, // Unidad
-      { wch: 10 }, // Stock
-      { wch: 18 }, // Metros disponibles
-      { wch: 14 }, // Estado
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
-    XLSX.writeFile(wb, `inventario_${sedeNombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
-  });
-};
+    const datos = rows.map(p => {
+      const metros = p.es_medible && p.metros_por_unidad ? p.cantidad * p.metros_por_unidad : null;
+      const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
+      return {
+        'Código': p.codigo || '—', 'Producto': p.producto, 'Categoría': p.categoria || '—',
+        'Unidad': p.unidad || '—', 'Stock': p.cantidad,
+        'Metros disponibles': metros !== null ? metros : '—',
+        'Estado': low ? 'Bajo stock' : 'Disponible',
+      };
+    });
+    import('xlsx').then(XLSX => {
+      const ws = XLSX.utils.json_to_sheet(datos);
+      ws['!cols'] = [{ wch: 14 }, { wch: 32 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+      XLSX.writeFile(wb, `inventario_${sedeNombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    });
+  };
 
   if (stockQ.isLoading) return (
     <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -336,72 +354,152 @@ export default function AdminAlmacenInventario() {
 
   return (
     <div style={{ padding: 28 }} className="animate-fade">
-      <Header title="Inventario" subtitle="Stock local, entradas y entregas a técnicos" right={<SedeBadge sedeNombre={sedeNombre} />} />
 
-      <div className="ainv-btns" style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={16} />}>Registrar entrada</Btn>
-        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [] }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={16} />}>Salida directa</Btn>
-        <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }} icon={<Send size={16} />}>Asignar a técnico</Btn>
-        {puedeEnviarStock && (
-          <Btn variant="blue" onClick={() => setModal('envio')} icon={<Send size={16} />} style={{ border: '2px solid #2563EB', borderRadius: 10, fontWeight: 700, boxShadow: '0 2px 8px rgba(37,99,235,0.18)' }}>Enviar a otra sede</Btn>
-        )}
-        <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={16} />}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--txt)', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>Inventario</h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--txt-2)' }}>Stock local de {sedeNombre}</p>
+        </div>
+        <SedeBadge sedeNombre={sedeNombre} />
+      </div>
+
+      {/* ── Barra de acciones + buscador ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {/* Buscador */}
+        <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-2)', minWidth: 180 }}>
+          <Search size={14} color="var(--txt-3)" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar ítem..." style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }} />
+        </div>
+
+        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={15} />}>
+          Registrar entrada
+        </Btn>
+        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [] }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={15} />}>
+          Salida directa
+        </Btn>
+        <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={15} />}>
           Exportar Excel
+        </Btn>
+        {puedeEnviarStock && (
+          <Btn variant="ghost" onClick={() => setModal('envio')} icon={<Send size={15} />}>
+            Enviar a sede
+          </Btn>
+        )}
+        <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }} icon={<Send size={15} />}
+          style={{ background: '#185FA5', color: '#fff', border: 'none' }}>
+          Asignar a técnico
         </Btn>
       </div>
 
+      {/* ── Envíos pendientes ── */}
       {(enviosPendientesQ.data || []).length > 0 && (
         <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(enviosPendientesQ.data || []).map(envio => (
-            <div key={envio.id} className="ainv-envio-pendiente" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid #D97706', borderRadius: 8, gap: 12 }}>
+          {(enviosPendientesQ.data || []).map(env => (
+            <div key={env.id} className="ainv-envio-pendiente" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid #D97706', borderRadius: 8, gap: 12 }}>
               <div style={{ fontSize: 13 }}>
                 <span style={{ fontWeight: 700 }}>📦 Envío pendiente</span>
-                <span style={{ color: 'var(--txt-3)', marginLeft: 8 }}>Guía: <strong>{envio.guia}</strong></span>
-                <span style={{ color: 'var(--txt-3)', marginLeft: 8 }}>desde <strong>{envio.sedeOrigen}</strong></span>
-                <div style={{ marginTop: 4, fontSize: 12, color: 'var(--txt-3)' }}>{envio.detalles?.map(d => `${d.cantidad}x ${d.producto}`).join(', ')}</div>
+                <span style={{ color: 'var(--txt-3)', marginLeft: 8 }}>Guía: <strong>{env.guia}</strong></span>
+                <span style={{ color: 'var(--txt-3)', marginLeft: 8 }}>desde <strong>{env.sedeOrigen}</strong></span>
+                <div style={{ marginTop: 4, fontSize: 12, color: 'var(--txt-3)' }}>{env.detalles?.map(d => `${d.cantidad}x ${d.producto}`).join(', ')}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn variant="ghost" onClick={() => { setEnvioSeleccionado(envio); setMotivoCancelacion(''); setModal('cancelar-envio'); }}>Cancelar</Btn>
-                <Btn onClick={() => { setEnvioSeleccionado(envio); setModal('confirmar-envio'); }}>Confirmar recepción</Btn>
+                <Btn variant="ghost" onClick={() => { setEnvioSeleccionado(env); setMotivoCancelacion(''); setModal('cancelar-envio'); }}>Cancelar</Btn>
+                <Btn onClick={() => { setEnvioSeleccionado(env); setModal('confirmar-envio'); }}>Confirmar recepción</Btn>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <Card style={{ padding: 0 }}>
-        <Toolbar q={q} setQ={setQ} />
+      {/* ── Tabla ── */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
 
-        {/* Desktop: tabla */}
+        {/* Desktop */}
         <div className="ainv-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
-                {['Código', 'Producto', 'Categoría', 'Unidad', 'Stock', ...(hayMedibles ? ['Metros disp.'] : []), 'Estado'].map(h => (
-                  <th key={h} style={{ padding: '10px 12px', color: 'var(--txt-3)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>{h}</th>
+              <tr style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
+                {[
+                  { label: 'CÓDIGO',      w: '110px', align: 'left'   },
+                  { label: 'PRODUCTO',    w: undefined, align: 'left' },
+                  { label: 'CATEGORÍA',   w: '140px', align: 'left'   },
+                  { label: 'UNIDAD',      w: '90px',  align: 'center' },
+                  { label: 'STOCK',       w: '80px',  align: 'right'  },
+                  ...(hayMedibles ? [{ label: 'METROS DISP.', w: '130px', align: 'right' }] : []),
+                  { label: 'ESTADO',      w: '110px', align: 'center' },
+                ].map(h => (
+                  <th key={h.label} style={{ padding: '10px 14px', textAlign: h.align, fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', letterSpacing: '0.05em', width: h.w, whiteSpace: 'nowrap' }}>
+                    {h.label}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={hayMedibles ? 7 : 6} style={{ padding: 24, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</td></tr>
+                <tr>
+                  <td colSpan={hayMedibles ? 7 : 6} style={{ padding: 32, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>
+                    Sin stock en tu sede
+                  </td>
+                </tr>
               ) : rows.map(p => {
                 const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
+                const badgeStyle = categoriaBadgeStyle(p.categoria);
                 return (
-                  <tr key={p.producto_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '11px 12px', color: 'var(--txt)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{p.codigo || '—'}</td>
-                    <td style={{ padding: '11px 12px', color: 'var(--txt)' }}><strong>{p.producto}</strong></td>
-                    <td style={{ padding: '11px 12px', color: 'var(--txt-2)' }}>{p.categoria || '—'}</td>
-                    <td style={{ padding: '11px 12px', color: 'var(--txt-2)' }}>{p.unidad || '—'}</td>
-                    <td style={{ padding: '11px 12px' }}><StockBar stock={p.cantidad} minimo={p.stock_minimo} /></td>
-                    {hayMedibles && <td style={{ padding: '11px 12px' }}><MetrosCell p={p} /></td>}
-                    <td style={{ padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Badge color={low ? 'red' : 'green'}>{low ? 'Bajo stock' : 'Disponible'}</Badge>
-                      {isOnuProduct(p) && (
-                        <Btn variant="ghost" size="sm" icon={<Wifi size={13} />} onClick={() => { setOnuForm({ producto_id: String(p.producto_id), codigos_pon: [''] }); setModal('onu'); }}>
-                          Registrar ONU
-                        </Btn>
-                      )}
+                  <tr key={p.producto_id} className="ainv-row-hover" style={{ borderTop: '1px solid var(--border)' }}>
+
+                    {/* Código */}
+                    <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>
+                      {p.codigo || '—'}
+                    </td>
+
+                    {/* Producto */}
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.producto}</div>
+                    </td>
+
+                    {/* Categoría */}
+                    <td style={{ padding: '12px 14px' }}>
+                      {p.categoria ? (
+                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
+                          {p.categoria}
+                        </span>
+                      ) : <span style={{ color: 'var(--txt-3)' }}>—</span>}
+                    </td>
+
+                    {/* Unidad */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 12, color: 'var(--txt-2)' }}>
+                      {p.unidad || '—'}
+                    </td>
+
+                    {/* Stock */}
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                      <StockBar stock={p.cantidad} minimo={p.stock_minimo} />
+                    </td>
+
+                    {/* Metros disp. */}
+                    {hayMedibles && (
+                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <MetrosCell p={p} />
+                      </td>
+                    )}
+
+                    {/* Estado */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        {low
+                          ? <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#FCEBEB', color: '#A32D2D' }}>Bajo stock</span>
+                          : <span style={{ fontSize: 12, fontWeight: 600, color: '#3B6D11' }}>OK</span>
+                        }
+                        {isOnuProduct(p) && (
+                          <button title="Registrar ONU" onClick={() => { setOnuForm({ producto_id: String(p.producto_id), codigos_pon: [''] }); setModal('onu'); }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--txt-3)' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-3)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--txt-3)'; }}>
+                            <Wifi size={13} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -416,6 +514,7 @@ export default function AdminAlmacenInventario() {
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</div>
           ) : rows.map(p => {
             const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
+            const badgeStyle = categoriaBadgeStyle(p.categoria);
             return (
               <div key={p.producto_id} className="ainv-card">
                 <div className="ainv-card-top">
@@ -423,15 +522,18 @@ export default function AdminAlmacenInventario() {
                     <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--txt)' }}>{p.producto}</div>
                     {p.codigo && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--txt-3)' }}>{p.codigo}</span>}
                   </div>
-                  <Badge color={low ? 'red' : 'green'}>{low ? 'Bajo stock' : 'Disponible'}</Badge>
+                  {low
+                    ? <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#FCEBEB', color: '#A32D2D' }}>Bajo stock</span>
+                    : <span style={{ fontSize: 12, fontWeight: 600, color: '#3B6D11' }}>OK</span>
+                  }
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {p.categoria && <Badge color="blue">{p.categoria}</Badge>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {p.categoria && <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>{p.categoria}</span>}
                   {p.unidad && <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{p.unidad}</span>}
                   <StockBar stock={p.cantidad} minimo={p.stock_minimo} />
                   {p.es_medible && p.metros_por_unidad && (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: p.cantidad * p.metros_por_unidad === 0 ? 'var(--red)' : '#16A34A', fontFamily: 'var(--font-mono)' }}>
-                      {(p.cantidad * p.metros_por_unidad).toLocaleString()} m
+                    <span style={{ fontSize: 12, fontWeight: 700, color: p.cantidad * p.metros_por_unidad === 0 ? '#A32D2D' : '#185FA5', fontFamily: 'var(--font-mono)' }}>
+                      {(p.cantidad * p.metros_por_unidad).toLocaleString()}m
                     </span>
                   )}
                 </div>
@@ -444,77 +546,119 @@ export default function AdminAlmacenInventario() {
             );
           })}
         </div>
-      </Card>
+      </div>
+
+      {/* ══ MODALES ══════════════════════════════════════════ */}
 
       {modal === 'entrada' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada" overlayColor="rgba(255,255,255,0.85)">
+        <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ProductSearch label="Buscar producto del catálogo" search={entradaSearch} setSearch={setEntradaSearch} products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, unidad: p.unidad }))} selected={entrada.items} onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
-            <ItemsList stock={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, cantidad: null }))} items={entrada.items} setItems={items => setEntrada({ ...entrada, items })} showDisponible={false} />
+            <ProductSearch label="Buscar producto del catálogo" search={entradaSearch} setSearch={setEntradaSearch}
+              products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, unidad: p.unidad }))}
+              selected={entrada.items} onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+            <ItemsList stock={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, cantidad: null }))}
+              items={entrada.items} setItems={items => setEntrada({ ...entrada, items })} showDisponible={false} allowOnu={false} />
             <Input label="Comentario" value={entrada.comentario} onChange={e => setEntrada({ ...entrada, comentario: e.target.value })} />
-            <Btn onClick={() => entradaM.mutate()} disabled={!sedeId || entradaItemsValidos.length === 0 || entradaM.isPending} icon={<Check size={15} />}>Registrar ({entradaItemsValidos.length})</Btn>
-          </div>
-        </UIModal>
-      )}
-
-      {modal === 'onu' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Registrar ONU con PON-SN">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {productosOnu.length === 0 && <div style={{ padding: '10px 12px', border: '1px solid var(--red)', borderRadius: 8, color: 'var(--red)', background: 'var(--red-bg)', fontSize: 13 }}>No hay productos ONU con stock en esta sede.</div>}
-            {!onuForm.producto_id && (
-              <Select label="Modelo / producto ONU" value={onuForm.producto_id} onChange={e => setOnuForm({ ...onuForm, producto_id: e.target.value, codigos_pon: Array(productosOnu.find(p => String(p.producto_id) === e.target.value)?.cantidad || 1).fill('') })}>
-                <option value="">Seleccionar...</option>
-                {productosOnu.map(p => <option key={p.producto_id} value={p.producto_id}>{p.codigo || '—'} - {p.producto} (stock {p.cantidad})</option>)}
-              </Select>
-            )}
-            {onuForm.producto_id && (
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span><strong>{productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id))?.producto}</strong></span>
-                <button onClick={() => setOnuForm({ producto_id: '', codigos_pon: [''] })} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--txt-3)', fontSize: 12 }}>cambiar</button>
-              </div>
-            )}
-            {onuForm.producto_id && (() => {
-              const yaRegistradas = (onusExistentesQ.data || []).filter(o => o.codigo_pon && !o.salida_directa && !o.tecnico_id && !o.activacion_id);
-              const stockTotal = productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id))?.cantidad || 0;
-              const disponibles = stockTotal - yaRegistradas.length;
-              return (
-                <div>
-                  {yaRegistradas.length > 0 && (
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ya registradas ({yaRegistradas.length})</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {yaRegistradas.map(o => <span key={o.id} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--txt-2)' }}>{o.codigo_pon}</span>)}
-                      </div>
-                    </div>
-                  )}
-                  {disponibles <= 0 ? (
-                    <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt-2)', fontSize: 13, background: 'var(--bg-2)' }}>Todas las ONUs de este producto ya tienen código PON registrado.</div>
-                  ) : (
-                    <>
-                      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nuevos códigos PON-SN ({(onuForm.codigos_pon || []).filter(c => c.trim()).length} de {disponibles} disponibles)</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {(onuForm.codigos_pon || ['']).map((cod, idx) => (
-                          <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input value={cod} onChange={e => { const next = [...(onuForm.codigos_pon || [''])]; next[idx] = e.target.value.toUpperCase(); setOnuForm({ ...onuForm, codigos_pon: next }); }} placeholder={`PON-SN ${idx + 1}`} style={{ flex: 1, height: 36, border: '1px solid var(--border)', borderRadius: 8, padding: '0 10px', background: 'var(--bg-2)', color: 'var(--txt)', fontSize: 13, fontFamily: 'var(--font-mono)' }} />
-                            {(onuForm.codigos_pon?.length || 1) > 1 && <Btn variant="danger" size="sm" onClick={() => setOnuForm({ ...onuForm, codigos_pon: (onuForm.codigos_pon || ['']).filter((_, i) => i !== idx) })}><X size={14} /></Btn>}
-                          </div>
-                        ))}
-                      </div>
-                      {(onuForm.codigos_pon || []).length < disponibles && <Btn variant="ghost" size="sm" icon={<Plus size={14} />} style={{ marginTop: 8 }} onClick={() => setOnuForm({ ...onuForm, codigos_pon: [...(onuForm.codigos_pon || ['']), ''] })}>Agregar otro código</Btn>}
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-            <Btn onClick={() => registrarOnuM.mutate()} disabled={!onuForm.producto_id || !(onuForm.codigos_pon || []).some(c => c.trim()) || registrarOnuM.isPending} icon={<Check size={15} />}>
-              Registrar {(onuForm.codigos_pon || []).filter(c => c.trim()).length} ONU{(onuForm.codigos_pon || []).filter(c => c.trim()).length !== 1 ? 's' : ''}
+            <Btn onClick={() => entradaM.mutate()} disabled={!sedeId || entradaItemsValidos.length === 0 || entradaM.isPending} icon={<Check size={15} />}>
+              Registrar ({entradaItemsValidos.length})
             </Btn>
           </div>
         </UIModal>
       )}
 
+      {modal === 'onu' && (() => {
+        const productoActual = productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id));
+        const onusData     = onusExistentesQ.data || [];
+        const stockTotal   = productoActual?.cantidad || 0;
+        const conCodigo    = onusData.filter(o => o.codigo_pon && !o.tecnico_id);
+        const sinCodigo    = Math.max(0, stockTotal - conCodigo.length);
+        const nuevosListos = (onuForm.codigos_pon || []).filter(c => c.trim()).length;
+        return (
+          <UIModal open={true} onClose={() => setModal(null)} title={productoActual ? `ONUs — ${productoActual.producto}` : 'Registrar ONU con PON-SN'}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {!onuForm.producto_id && (
+                <div style={{ padding: '0 0 14px' }}>
+                  {productosOnu.length === 0 && <div style={{ padding: '10px 12px', border: '1px solid var(--red)', borderRadius: 8, color: 'var(--red)', background: 'var(--red-bg)', fontSize: 13, marginBottom: 12 }}>No hay productos ONU con stock en esta sede.</div>}
+                  <Select label="Modelo / producto ONU" value={onuForm.producto_id} onChange={e => setOnuForm({ ...onuForm, producto_id: e.target.value, codigos_pon: [''] })}>
+                    <option value="">Seleccionar...</option>
+                    {productosOnu.map(p => <option key={p.producto_id} value={p.producto_id}>{p.codigo || '—'} — {p.producto} (stock {p.cantidad})</option>)}
+                  </Select>
+                </div>
+              )}
+              {onuForm.producto_id && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '10px 14px', marginBottom: 14, background: 'var(--bg-3)', borderRadius: 8, border: '0.5px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1D9E75' }}/><span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Con código</span><span style={{ fontSize: 15, fontWeight: 600, color: 'var(--txt)' }}>{conCodigo.length}</span>
+                    </div>
+                    <div style={{ width: 1, height: 18, background: 'var(--border)' }}/>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px dashed var(--txt-3)' }}/><span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin código</span><span style={{ fontSize: 15, fontWeight: 600, color: 'var(--txt)' }}>{sinCodigo}</span>
+                    </div>
+                    <div style={{ width: 1, height: 18, background: 'var(--border)' }}/>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Total</span><span style={{ fontSize: 15, fontWeight: 600, color: 'var(--txt)' }}>{stockTotal}</span>
+                    </div>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <button onClick={() => setOnuForm({ producto_id: '', codigos_pon: [''] })} style={{ fontSize: 12, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer' }}>cambiar</button>
+                    </div>
+                  </div>
+                  {onusExistentesQ.isLoading ? <div style={{ padding: 24, textAlign: 'center' }}><Spinner size={20} /></div> : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {conCodigo.length > 0 && (
+                        <div>
+                          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Con código — editar ({conCodigo.length})</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {conCodigo.map(onu => (
+                              <OnuEditRow key={onu.id} onu={onu}
+                                onSave={(id, nuevoCodigo) => onusApi.actualizarCodigo(id, { codigo_pon: nuevoCodigo }).then(() => { toast.success('Código actualizado'); qc.invalidateQueries({ queryKey: ['onus-existentes'] }); }).catch(e => toast.error(e.response?.data?.error || 'Error al actualizar'))}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {sinCodigo > 0 && (
+                        <div style={{ borderTop: conCodigo.length > 0 ? '0.5px solid var(--border)' : 'none', paddingTop: conCodigo.length > 0 ? 16 : 0 }}>
+                          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sin código — ingresar ({sinCodigo} pendientes)</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {(onuForm.codigos_pon || ['']).map((cod, idx) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 12, color: 'var(--txt-3)', fontFamily: 'var(--font-mono)', width: 20, textAlign: 'right', flexShrink: 0 }}>{idx + 1}</span>
+                                <input value={cod} onChange={e => { const next = [...(onuForm.codigos_pon || [''])]; next[idx] = e.target.value.toUpperCase(); setOnuForm({ ...onuForm, codigos_pon: next }); }} placeholder="PON-SN" style={{ flex: 1, height: 36, border: '0.5px solid var(--border)', borderRadius: 8, padding: '0 10px', background: 'var(--bg-2)', color: 'var(--txt)', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none' }} />
+                                {(onuForm.codigos_pon?.length || 1) > 1 && <button onClick={() => setOnuForm({ ...onuForm, codigos_pon: (onuForm.codigos_pon || ['']).filter((_, i) => i !== idx) })} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--txt-3)', flexShrink: 0 }}><X size={15} /></button>}
+                              </div>
+                            ))}
+                          </div>
+                          {(onuForm.codigos_pon || []).length < sinCodigo && (
+                            <button onClick={() => setOnuForm({ ...onuForm, codigos_pon: [...(onuForm.codigos_pon || ['']), ''] })} style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--txt-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0' }}>
+                              <Plus size={14} /> Agregar otro código
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {sinCodigo === 0 && conCodigo.length > 0 && <div style={{ fontSize: 13, color: 'var(--txt-3)', textAlign: 'center', padding: '8px 0' }}>✅ Todas las ONUs tienen código PON registrado.</div>}
+                    </div>
+                  )}
+                  {sinCodigo > 0 && (
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{nuevosListos > 0 ? `${nuevosListos} código${nuevosListos !== 1 ? 's' : ''} listo${nuevosListos !== 1 ? 's' : ''}` : 'Completa al menos un código'}</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setModal(null)} style={{ padding: '0 16px', height: 36, fontSize: 13, cursor: 'pointer', borderRadius: 8, background: 'none', border: '0.5px solid var(--border)', color: 'var(--txt-3)' }}>Cancelar</button>
+                        <button onClick={() => registrarOnuM.mutate()} disabled={nuevosListos === 0 || registrarOnuM.isPending} style={{ padding: '0 16px', height: 36, fontSize: 13, cursor: nuevosListos === 0 ? 'not-allowed' : 'pointer', borderRadius: 8, background: nuevosListos > 0 ? 'var(--txt)' : 'var(--bg-3)', color: nuevosListos > 0 ? 'var(--bg)' : 'var(--txt-3)', border: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, opacity: registrarOnuM.isPending ? 0.6 : 1 }}>
+                          <Check size={14} /> Registrar {nuevosListos > 0 ? `${nuevosListos} ONU${nuevosListos !== 1 ? 's' : ''}` : 'ONUs'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </UIModal>
+        );
+      })()}
+
       {modal === 'asignar' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Asignar stock a técnico" overlayColor="rgba(255,255,255,0.85)">
+        <UIModal open={true} onClose={() => setModal(null)} title="Asignar stock a técnico">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Select label="Técnico" value={asignacion.tecnico_id} onChange={e => setAsignacion({ ...asignacion, tecnico_id: e.target.value })}>
               <option value="">Seleccionar...</option>
@@ -529,7 +673,7 @@ export default function AdminAlmacenInventario() {
       )}
 
       {modal === 'directa' && (
-        <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock" overlayColor="rgba(255,255,255,0.85)">
+        <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <ProductSearch label="Buscar producto" search={directaSearch} setSearch={setDirectaSearch} products={stock.filter(s => s.cantidad > 0)} selected={directa.items} onAdd={p => setDirecta({ ...directa, items: [...directa.items, { producto_id: String(p.producto_id), cantidad: '', onu_ids: [] }] })} />
             <ItemsList stock={stock} items={directa.items} setItems={items => setDirecta({ ...directa, items })} sedeId={sedeId} />
@@ -613,6 +757,7 @@ export default function AdminAlmacenInventario() {
           </div>
         </UIModal>
       )}
+
     </div>
   );
 }
