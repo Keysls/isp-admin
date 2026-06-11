@@ -492,12 +492,19 @@ export default function OrdenDetalle() {
               ]}
             />
 
-            {/* Materiales utilizados */}
-            {(orden.consumos?.length > 0) && (
-              <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em' }}>MATERIALES UTILIZADOS</span>
+            {/* Materiales utilizados — solo para no-retiros */}
+                {(orden.consumos?.length > 0) && 
+                !orden.tipoOrden?.includes('RETIRO') && 
+                !orden.tipoOrden?.includes('BAJA') && (
+                <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em' }}>
+                      {orden.tipoOrden?.includes('RETIRO') || orden.tipoOrden?.includes('BAJA') 
+                        ? 'EQUIPOS RECUPERADOS' 
+                        : 'MATERIALES UTILIZADOS'}
+                    </span>
                   <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{orden.consumos.length} item{orden.consumos.length !== 1 ? 's' : ''}</span>
+                
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {orden.consumos.map((c, i) => {
@@ -538,12 +545,57 @@ export default function OrdenDetalle() {
               </div>
             )}
 
-            {(!orden.consumos || orden.consumos.length === 0) && (
-              <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>MATERIALES UTILIZADOS</span>
-                <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin materiales registrados</span>
-              </div>
-            )}
+            {(!orden.consumos || orden.consumos.length === 0) && 
+              !orden.tipoOrden?.includes('RETIRO') && 
+              !orden.tipoOrden?.includes('BAJA') && (
+                <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                    MATERIALES UTILIZADOS
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin materiales registrados</span>
+                </div>
+              )}
+
+            {/* Equipos recuperados — solo para retiros */}
+              {(orden.tipoOrden?.includes('RETIRO') || orden.tipoOrden?.includes('BAJA')) && (
+                <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em' }}>
+                      EQUIPOS RECUPERADOS
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>
+                      {(orden.recojos?.length || 0)} equipo{(orden.recojos?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {(orden.recojos?.length || 0) === 0 ? (
+                    <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>Sin equipos registrados</span>
+                  ) : (orden.recojos || []).map((r, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', background: 'var(--bg-3)',
+                      borderRadius: 8, border: '1px solid var(--border)', marginBottom: 6,
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>
+                          {r.nombreProducto || r.tipoEquipo || 'Equipo'}
+                        </div>
+                        {r.codigoPon && (
+                          <div style={{ fontSize: 11, color: '#7c3aed', fontFamily: 'monospace', fontWeight: 600 }}>
+                            ◈ {r.codigoPon}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                        background: r.estado === 'en_mano' ? '#FEF3C7' : '#DCFCE7',
+                        color: r.estado === 'en_mano' ? '#92400E' : '#166534',
+                      }}>
+                        {r.estado === 'en_mano' ? 'En mano' : r.estado}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
           </div>
         </Modal>
