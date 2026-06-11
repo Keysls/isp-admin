@@ -556,8 +556,8 @@ export default function OrdenDetalle() {
                 </div>
               )}
 
-            {/* Equipos recuperados — solo para retiros */}
-              {(orden.tipoOrden?.includes('RETIRO') || orden.tipoOrden?.includes('BAJA')) && (
+            {/* Equipos recuperados — retiros y cambio de equipo */}
+{(orden.tipoOrden?.includes('RETIRO') || orden.tipoOrden?.includes('BAJA') || orden.tipoOrden?.includes('CAMBIO_EQUIPO')) && (
                 <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--txt-3)', letterSpacing: '0.06em' }}>

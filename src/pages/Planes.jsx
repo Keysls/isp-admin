@@ -213,7 +213,7 @@ export default function PlanesPage() {
 
       {/* Modal */}
       {modal && (
-        <div style={S.overlay} onClick={(e) => e.target === e.currentTarget && cerrar()}>
+        <div style={S.overlay}>
           <div style={S.modal}>
             <p style={S.modalTitle}>{modal === 'crear' ? 'Nuevo plan' : 'Editar plan'}</p>
 
