@@ -176,6 +176,37 @@ export default function DevolucionesPage() {
               </>
             )}
 
+            {/* ONUs devueltas — aparecen como recojos con tipoEquipo ONU */}
+              {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').length > 0 && (
+                <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#5B21B6', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    ◈ ONUs a devolver
+                  </div>
+                  {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').map(o => (
+
+                    <div key={o.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 10px', borderRadius: 8, marginBottom: 6,
+                      background: '#F5F3FF', border: '1px solid #DDD6FE',
+                    }}>
+                      <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6' }}>
+                            {o.nombreProducto || 'ONU'}
+                          </div>
+                          {o.codigoPon && (
+                            <div style={{ fontSize: 11, color: '#7C3AED', fontFamily: 'monospace' }}>
+                              ◈ {o.codigoPon}
+                            </div>
+                          )}
+                        </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#EDE9FE', color: '#6D28D9' }}>
+                        Pendiente
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
             {/* Recojos / equipos reciclados */}
             {dev.recojos.length > 0 && (
               <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>

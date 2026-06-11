@@ -93,11 +93,26 @@ function ModalInventario({ open, onClose, tecnico }) {
   const nombre = `${tecnico.usuario?.nombre} ${tecnico.usuario?.apellido}`.trim();
 
   // ── Stock actual: asignado − consumido ────────────────────
-  const stockActual = (data?.asignaciones || []).map(a => {
-    const gastado = (data?.consumos || [])
-      .filter(c => c.nombre === a.nombre)
-      .reduce((s, c) => s + Number(c.cantidad), 0);
-    const disponible = Math.max(0, Number(a.cantidad) - gastado);
+    const stockActual = (data?.asignaciones || []).map(a => {
+    const esOnu = (a.categoria || '').toLowerCase().includes('onu') ||
+                  (a.categoria || '').toLowerCase().includes('ont') ||
+                  (a.nombre    || '').toLowerCase().includes('onu') ||
+                  (a.nombre    || '').toLowerCase().includes('ont');
+
+    let gastado, disponible;
+
+    if (esOnu) {
+      // Para ONUs: disponible = cantidad de ONUs con codigoPon asignadas a este técnico
+      const onusDesteProducto = (data?.onus || []).filter(o => o.producto === a.nombre);
+      disponible = onusDesteProducto.length;
+      gastado    = Math.max(0, Number(a.cantidad) - disponible);
+    } else {
+      gastado    = (data?.consumos || [])
+        .filter(c => c.nombre === a.nombre)
+        .reduce((s, c) => s + Number(c.cantidad), 0);
+      disponible = Math.max(0, Number(a.cantidad) - gastado);
+    }
+
     const pct = a.cantidad > 0 ? Math.round((disponible / a.cantidad) * 100) : 0;
     return { ...a, gastado, disponible, pct };
   });
