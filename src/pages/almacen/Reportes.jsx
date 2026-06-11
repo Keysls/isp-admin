@@ -508,8 +508,6 @@ export default function AdminAlmacenReportes() {
 
       {/* Lista por día */}
       {Object.entries(byDay).map(([day, items]) => {
-        const porTipo = {};
-        items.forEach(m => { if (!porTipo[m.tipo]) porTipo[m.tipo] = []; porTipo[m.tipo].push(m); });
         return (
           <div key={day} style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -517,48 +515,44 @@ export default function AdminAlmacenReportes() {
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{items.length} mov.</span>
             </div>
-            {Object.entries(porTipo).map(([tipo, rows]) => (
-              <Card key={tipo} style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
-                  <TipoBadge tipo={tipo} />
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--txt-3)' }}>{rows.length} ítem{rows.length !== 1 ? 's' : ''}</span>
+            {items.map((m, i) => (
+              <Card key={i} style={{ padding: 0, marginBottom: 8, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
+                  <TipoBadge tipo={m.tipo} />
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--txt-3)' }}>
+                    {new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
 
                 {/* Desktop */}
-                <div className="arep-row" style={{ gap: 12, padding: '7px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-                  <span>Producto</span><span>Hora</span><span style={{ textAlign: 'right' }}>Cant.</span><span>Detalle / Técnico / Sede</span>
-                </div>
-                {rows.map((m, i) => (
-                  <div key={i} className="arep-row" style={{ gap: 12, padding: '11px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
-                    <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
-                    <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
-                    <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      {m.tipo === 'envio_salida' && m.sede_destino && (
-                        <span style={{ color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</span>
-                      )}
-                      {m.tipo === 'envio_entrada' && m.sede_origen && (
-                        <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
-                      )}
-                      {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
-                        <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
-                          👤 {m.tecnico_nombre}
-                        </span>
-                      )}
-                      {m.tipo === 'consumo' && m.contrato && (
-                        <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
-                          📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
-                        </span>
-                      )}
-                      {limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
+              <div className="arep-row" style={{ gap: 12, padding: '11px 16px', fontSize: 13, alignItems: 'center' }}>
+                <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
+                <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
+                <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {m.tipo === 'envio_salida' && m.sede_destino && (
+                    <span style={{ color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</span>
+                  )}
+                  {m.tipo === 'envio_entrada' && m.sede_origen && (
+                    <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
+                  )}
+                  {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                    <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
+                      👤 {m.tecnico_nombre}
                     </span>
-                  </div>
-                ))}
+                  )}
+                  {m.tipo === 'consumo' && m.contrato && (
+                    <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
+                      📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
+                    </span>
+                  )}
+                  {limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
+                </span>
+              </div>
 
                 {/* Móvil */}
                 <div className="arep-cards">
-                  {rows.map((m, i) => (
-                    <div key={i} className="arep-card">
+                    <div className="arep-card">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
                         <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
@@ -577,7 +571,6 @@ export default function AdminAlmacenReportes() {
                         <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
                       )}
                     </div>
-                  ))}
                 </div>
               </Card>
             ))}

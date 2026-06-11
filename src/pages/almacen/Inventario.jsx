@@ -249,7 +249,9 @@ function OnuEditRow({ onu, onSave }) {
       ) : (
         <>
           <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{onu.codigo_pon}</span>
-          <span style={{ fontSize: 11, color: 'var(--txt-3)', background: 'var(--bg-3)', padding: '2px 8px', borderRadius: 6 }}>{onu.tecnico_id ? (onu.tecnico || 'Técnico') : 'En sede'}</span>
+          <span style={{ fontSize: 11, color: 'var(--txt-3)', background: 'var(--bg-3)', padding: '2px 8px', borderRadius: 6 }}>
+            {onu.tecnico_id ? (onu.tecnico || 'Técnico') : onu.cliente ? 'Instalada' : 'En sede'}
+          </span>
           <button onClick={() => setEditando(true)} style={{ fontSize: 12, color: 'var(--txt-3)', display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', background: 'none', border: '0.5px solid var(--border)' }}>✏ Editar</button>
         </>
       )}
@@ -594,7 +596,7 @@ export default function AdminAlmacenInventario() {
         const productoActual = productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id));
         const onusData     = onusExistentesQ.data || [];
         const stockTotal   = productoActual?.cantidad || 0;
-        const conCodigo    = onusData.filter(o => o.codigo_pon && !o.tecnico_id);
+        const conCodigo    = onusData.filter(o => o.codigo_pon && !o.tecnico_id && !o.cliente);
         const sinCodigo    = Math.max(0, stockTotal - conCodigo.length);
         const nuevosListos = (onuForm.codigos_pon || []).filter(c => c.trim()).length;
         return (
