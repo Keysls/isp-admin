@@ -122,7 +122,11 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
       onTouchEnd={e => { if (!modoSeleccion) e.currentTarget.style.background = 'var(--bg)'; }}
     >
       {/* Checkbox en móvil */}
-      {modoSeleccion && o.estado !== 'COMPLETADA' && o.estado !== 'CANCELADA' && (
+      {modoSeleccion && 
+          o.estado !== 'COMPLETADA' && 
+          o.estado !== 'CANCELADA' &&
+          o.estado !== 'ACEPTADA' &&
+          o.estado !== 'EN_PROCESO' && (
         <div style={{ paddingTop: 2 }}>
           <Checkbox checked={seleccionado} onChange={onToggle} onClick={e => e.stopPropagation()} />
         </div>
@@ -158,7 +162,9 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
               ? `👷 ${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}`
               : 'Sin técnico asignado'}
           </span>
-          {!modoSeleccion && !o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && (
+          {!modoSeleccion && !o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && 
+              o.estado !== 'ACEPTADA' && 
+              o.estado !== 'EN_PROCESO' && (
             <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
               onClick={e => { e.stopPropagation(); onAsignar(o); }}>
               Asignar
@@ -714,7 +720,11 @@ export default function OrdenesPage() {
                   style={{ background: seleccionado ? 'color-mix(in srgb, var(--accent) 6%, var(--bg))' : undefined }}
                 >
                   <Td style={{ width: 36 }} onClick={e => e.stopPropagation()}>
-                    {!esSoloNoc && o.estado !== 'COMPLETADA' && o.estado !== 'CANCELADA' && (
+                    {!esSoloNoc && 
+                    o.estado !== 'COMPLETADA' && 
+                    o.estado !== 'CANCELADA' &&
+                    o.estado !== 'ACEPTADA' &&
+                    o.estado !== 'EN_PROCESO' && (
                       <Checkbox
                         checked={seleccionado}
                         onChange={() => toggleSeleccion(o)}
@@ -746,12 +756,14 @@ export default function OrdenesPage() {
                     {o.tecnico ? `${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}` : <span style={{ color: 'var(--txt-3)' }}>Sin asignar</span>}
                   </Td>
                   <Td>
-                    {!o.tecnico && !esSoloNoc && (
-                      <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
-                        onClick={e => { e.stopPropagation(); setOrdenAsignar(o); }}>
-                        Asignar
-                      </Btn>
-                    )}
+                    {!o.tecnico && !esSoloNoc && 
+                      o.estado !== 'ACEPTADA' && 
+                      o.estado !== 'EN_PROCESO' && (
+                        <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
+                          onClick={e => { e.stopPropagation(); setOrdenAsignar(o); }}>
+                          Asignar
+                        </Btn>
+                      )}
                   </Td>
                 </Tr>
               );
