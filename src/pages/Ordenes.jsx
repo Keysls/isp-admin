@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Table, Tr, Td, Btn, Modal, Input, Select, Spinner, Empty, TimerBadge } from '../components/ui';
 import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, TIPOS_DUO, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
+import DrawerOrden from '../components/DrawerOrden';
 
 function useIsMobile(breakpoint = 1081) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
@@ -444,6 +445,7 @@ export default function OrdenesPage() {
   const [searchParams]  = useSearchParams();
   const isMobile        = useIsMobile();
   const [showExcel, setShowExcel]           = useState(false);
+  const [ordenDrawer, setOrdenDrawer]       = useState(null);
   const [ordenAsignar, setOrdenAsignar]     = useState(null);   // asignación individual
   const [showAsignarMasivo, setShowAsignarMasivo] = useState(false); // asignación masiva
   const [tab, setTab]                       = useState('todos');
@@ -690,7 +692,7 @@ export default function OrdenesPage() {
               ordenes.map(o => (
                 <OrdenCard key={o.id} o={o}
                   onAsignar={setOrdenAsignar}
-                  onNavigate={id => navigate(`/ordenes/${id}`)}
+                  onNavigate={id => setOrdenDrawer(id)}
                   seleccionado={seleccionados.has(o.id)}
                   onToggle={() => toggleSeleccion(o)}
                   modoSeleccion={modoSeleccion}
@@ -716,7 +718,7 @@ export default function OrdenesPage() {
               const seleccionado = seleccionados.has(o.id);
               return (
                 <Tr key={o.id}
-                  onClick={() => navigate(`/ordenes/${o.id}`)}
+                  onClick={() => setOrdenDrawer(o.id)}
                   style={{ background: seleccionado ? 'color-mix(in srgb, var(--accent) 6%, var(--bg))' : undefined }}
                 >
                   <Td style={{ width: 36 }} onClick={e => e.stopPropagation()}>
@@ -792,6 +794,7 @@ export default function OrdenesPage() {
       />
 
       <ModalSubirExcel open={showExcel} onClose={() => setShowExcel(false)} />
+      <DrawerOrden ordenId={ordenDrawer} onCerrar={() => setOrdenDrawer(null)} />
 
       {/* Modal individual */}
       <ModalAsignar

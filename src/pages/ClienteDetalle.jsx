@@ -193,14 +193,14 @@ export default function ClienteDetalle() {
       {/* Timeline órdenes */}
       <Card style={{ padding: 0 }}>
         <CardHeader icon={<Activity size={15}/>} title={`Historial de órdenes (${c.ordenes.length})`}/>
-        <div style={{ padding: '8px 16px 16px' }}>
-          {c.ordenes.length === 0 ? (
+          <div style={{ padding: '8px 16px 16px' }}>
+            {c.ordenes.length === 0 ? (
             <div style={{ padding: 20, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>
               Sin órdenes registradas
             </div>
           ) : (
             <div>
-              {c.ordenes.map((o, i) => {
+              {[...c.ordenes].sort((a, b) => Number(b.nServicio) - Number(a.nServicio)).map((o, i) => {
                 const eCfg   = ESTADO_ORDEN[o.estado] || { label: o.estado, color: '#768999' };
                 const ultima = i === c.ordenes.length - 1;
                 const enProc = o.estado === 'EN_PROCESO';

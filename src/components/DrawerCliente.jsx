@@ -124,11 +124,11 @@ export default function DrawerCliente({ numero, onCerrar }) {
                   }}>
                     {c.abonado}
                   </div>
-                  {c.dni && (
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-                      DNI&nbsp;&nbsp;{c.dni}
-                    </div>
-                  )}
+                  {c.numero && (
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, fontFamily: 'monospace' }}>
+                    Contrato:&nbsp;{c.numero}
+                  </div>
+                )}
                 </div>
 
                 {/* Acciones rápidas + cerrar */}
