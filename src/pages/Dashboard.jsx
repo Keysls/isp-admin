@@ -5,7 +5,8 @@ import { ArrowRight, Wifi, Tv, CheckCircle, Users } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Spinner, Avatar } from '../components/ui';
-import { fmtFecha, fmtMinutos, TIPO_LABEL, TIPO_COLOR } from '../utils/helpers';
+import { fmtFecha, fmtMinutos, TIPO_COLOR } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 function StatCard({ icon: Icon, label, value, color, sub, onClick }) {
   return (
@@ -27,6 +28,7 @@ function StatCard({ icon: Icon, label, value, color, sub, onClick }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { tipoLabel } = useTiposOrden();
 
   const { data: stats } = useQuery({
     queryKey: ['stats'],
@@ -203,7 +205,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>#{o.nServicio}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-                    {TIPO_LABEL[o.tipoOrden]}
+                    {tipoLabel(o.tipoOrden)}
                   </span>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{o.abonado}</div>

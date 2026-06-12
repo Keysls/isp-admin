@@ -9,7 +9,8 @@ import {
 import toast from 'react-hot-toast';
 import { contratosApi } from '../services/api';
 import { Spinner } from './ui';
-import { fmtFecha, TIPO_LABEL } from '../utils/helpers';
+import { fmtFecha } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 
 const ESTADO_CONTRATO = {
@@ -31,6 +32,7 @@ const ESTADO_ORDEN = {
 
 export default function DrawerCliente({ numero, onCerrar }) {
   const navigate = useNavigate();
+  const { tipoLabel } = useTiposOrden();
   const abierto  = !!numero;
 
   // Bloquear scroll del body cuando el drawer está abierto
@@ -271,7 +273,7 @@ export default function DrawerCliente({ numero, onCerrar }) {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                               <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>
-                                {o.tipoOrdenLabel || TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+                                {o.tipoOrdenLabel || tipoLabel(o.tipoOrden)}
                               </span>
                               <span style={{ fontSize: 11, color: '#3b9fd4', fontFamily: 'monospace' }}>
                                 #{o.nServicio}

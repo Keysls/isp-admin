@@ -5,7 +5,8 @@ import { ArrowLeft, Phone, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi, BACKEND_URL } from '../services/api';
 import { Card, EstadoBadge, Btn, Select, Spinner, Modal, Avatar, TimerBadge } from '../components/ui';
-import { fmtFecha, fmtFechaHora, fmtMinutos, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_DUO, waLink } from '../utils/helpers';
+import { fmtFecha, fmtFechaHora, fmtMinutos, TIPO_COLOR, waLink } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 function InfoFila({ label, value }) {
   return (
@@ -92,6 +93,7 @@ function formatCantidadConsumo(c) {
 
 export default function OrdenDetalle() {
   const { id }   = useParams();
+  const { tipoLabel, esInternet: esInternetFn, esDeGrupo } = useTiposOrden();
   const navigate = useNavigate();
   const qc       = useQueryClient();
   const [showAsignar, setShowAsignar] = useState(false);
@@ -128,8 +130,8 @@ export default function OrdenDetalle() {
   );
   if (!orden) return <div style={{ padding: 28, color: 'var(--txt-3)' }}>Orden no encontrada</div>;
 
-  const esInternet = TIPOS_INTERNET.includes(orden.tipoOrden);
-  const esDuo      = TIPOS_DUO.includes(orden.tipoOrden);
+  const esInternet = esInternetFn(orden.tipoOrden);
+  const esDuo      = esDeGrupo(orden.tipoOrden, 'DUO');
   const tieneInternet = esInternet || esDuo;
   const inst       = orden.instalacion;
   const enCurso    = orden.estado === 'ACEPTADA' || orden.estado === 'EN_PROCESO';
@@ -151,7 +153,7 @@ export default function OrdenDetalle() {
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800 }}>Orden #{orden.nServicio}</h1>
             <EstadoBadge estado={orden.estado} />
             <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[orden.tipoOrden], background: TIPO_COLOR[orden.tipoOrden] + '15', padding: '3px 10px', borderRadius: 20 }}>
-              {esDuo ? '📡📺' : esInternet ? '📡' : '📺'} {TIPO_LABEL[orden.tipoOrden] || orden.tipoOrden}
+              {esDuo ? '📡📺' : esInternet ? '📡' : '📺'} {tipoLabel(orden.tipoOrden)}
             </span>
             {enCurso && orden.fechaAceptacion && <TimerBadge fechaAceptacion={orden.fechaAceptacion} completada={false} />}
             {orden.tiempoInstalacion && (
@@ -422,7 +424,7 @@ export default function OrdenDetalle() {
               titulo="ORDEN"
               campos={[
                 ['N° Orden',          orden.nServicio],
-                ['Tipo',              TIPO_LABEL[orden.tipoOrden] || orden.tipoOrden],
+                ['Tipo',              tipoLabel(orden.tipoOrden)],
                 ['Estado',            orden.estado?.replace(/_/g, ' ')],
                 ['Fecha servicio',    fmtFecha(orden.fechaServicio)],
                 ['Fecha creación',    fmtFechaHora(orden.createdAt)],

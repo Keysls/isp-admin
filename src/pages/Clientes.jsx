@@ -5,7 +5,8 @@ import { Search, X, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { contratosApi } from '../services/api';
 import { Card, Table, Tr, Td, Btn, Empty, Modal, Spinner } from '../components/ui';
-import { TIPO_LABEL, fmtFecha } from '../utils/helpers';
+import { fmtFecha } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 import DrawerCliente from '../components/DrawerCliente';
 
 // ── Hook: detectar móvil ──────────────────────────────────────
@@ -37,7 +38,7 @@ const ESTADO_COLOR = {
 };
 
 // ── Tarjeta de cliente para móvil ─────────────────────────────
-function ClienteCard({ c, eColor, eLabel, onClick }) {
+function ClienteCard({ c, eColor, eLabel, onClick, tipoLabel }) {
   return (
     <div
       onClick={onClick}
@@ -104,7 +105,7 @@ function ClienteCard({ c, eColor, eLabel, onClick }) {
       {c.ultimaActividad && (
         <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>
           {fmtFecha(c.ultimaActividad)}
-          {c.ultimoTipoOrden && ` · ${TIPO_LABEL[c.ultimoTipoOrden] || c.ultimoTipoOrden}`}
+          {c.ultimoTipoOrden && ` · ${tipoLabel(c.ultimoTipoOrden)}`}
         </div>
       )}
     </div>
@@ -296,6 +297,7 @@ function ModalImportarContratos({ open, onClose }) {
 export default function ClientesPage() {
   const navigate       = useNavigate();
   const isMobile       = useIsMobile();
+  const { tipoLabel } = useTiposOrden();
   const [filtroEstado,  setFiltroEstado]  = useState('');
   const [busquedaInput, setBusquedaInput] = useState('');
   const [busqueda,      setBusqueda]      = useState('');
@@ -460,6 +462,7 @@ export default function ClientesPage() {
                 eColor={ESTADO_COLOR[c.estado] || '#768999'}
                 eLabel={FILTROS_ESTADO.find(f => f.key === c.estado)?.label || c.estado}
                 onClick={() => setContratoSel(c.numero)}
+                tipoLabel={tipoLabel}
               />
             ))}
           </div>
@@ -526,7 +529,7 @@ export default function ClientesPage() {
                       <>
                         <div style={{ fontFamily: 'var(--font-mono)' }}>{fmtFecha(c.ultimaActividad)}</div>
                         <div style={{ fontSize: 10, marginTop: 1 }}>
-                          {TIPO_LABEL[c.ultimoTipoOrden] || c.ultimoTipoOrden}
+                          {tipoLabel(c.ultimoTipoOrden)}
                         </div>
                       </>
                     ) : '—'}

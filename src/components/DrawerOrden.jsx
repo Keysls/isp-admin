@@ -9,10 +9,12 @@ import {
 import toast from 'react-hot-toast';
 import { ordenesApi } from '../services/api';
 import { Spinner, EstadoBadge } from './ui';
-import { fmtFecha, fmtFechaHora, TIPO_LABEL, TIPO_COLOR } from '../utils/helpers';
+import { fmtFecha, fmtFechaHora, TIPO_COLOR } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 export default function DrawerOrden({ ordenId, onCerrar }) {
   const navigate  = useNavigate();
+  const { tipoLabel } = useTiposOrden();
   const abierto   = !!ordenId;
   const [copiado, setCopiado] = React.useState(false);
 
@@ -95,7 +97,7 @@ export default function DrawerOrden({ ordenId, onCerrar }) {
                       background: (TIPO_COLOR[orden.tipoOrden] || '#3b9fd4') + '15',
                       padding: '2px 8px', borderRadius: 20,
                     }}>
-                      {TIPO_LABEL[orden.tipoOrden] || orden.tipoOrden}
+                      {tipoLabel(orden.tipoOrden)}
                     </span>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', lineHeight: 1.3 }}>

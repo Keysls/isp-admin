@@ -5,7 +5,8 @@ import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { ordenesApi } from '../services/api';
 import { Card, Spinner, Btn } from '../components/ui';
-import { fmtFecha, fmtFechaHora, fmtMinutos, ESTADO_CONFIG, TIPO_LABEL } from '../utils/helpers';
+import { fmtFecha, fmtFechaHora, fmtMinutos, ESTADO_CONFIG } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 function StatBox({ label, value, color, icon: Icon }) {
   return (
@@ -58,6 +59,7 @@ function BarChart({ data, total }) {
 
 export default function ReportesPage() {
   const [exportando, setExportando] = useState(false);
+  const { tipoLabel } = useTiposOrden();
 
   // Una sola query que trae los AGREGADOS calculados en backend
   const { data: stats } = useQuery({
@@ -78,7 +80,7 @@ export default function ReportesPage() {
 
   const byTipo = Object.entries(stats?.porTipo || {})
     .map(([k, v]) => ({
-      label: TIPO_LABEL[k] || k,
+      label: tipoLabel(k),
       value: v,
       color: 'var(--accent)',
     }))
@@ -113,7 +115,7 @@ export default function ReportesPage() {
 
       const filas = all.map(o => ({
         'N° Orden':           o.nServicio,
-        'Tipo':               TIPO_LABEL[o.tipoOrden]        || o.tipoOrden,
+        'Tipo':               tipoLabel(o.tipoOrden),
         'Estado':             ESTADO_CONFIG[o.estado]?.label || o.estado,
         'Abonado':            o.abonado,
         'DNI':                o.dni        || '',

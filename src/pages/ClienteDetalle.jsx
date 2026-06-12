@@ -8,7 +8,8 @@ import {
 import toast from 'react-hot-toast';
 import { contratosApi } from '../services/api';
 import { Card, Btn, Spinner } from '../components/ui';
-import { fmtFecha, TIPO_LABEL } from '../utils/helpers';
+import { fmtFecha } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 
 const ESTADO_CONTRATO = {
   ACTIVO:         { label: 'Activo',         color: '#3fb950' },
@@ -30,6 +31,7 @@ const ESTADO_ORDEN = {
 
 export default function ClienteDetalle() {
   const { numero } = useParams();
+  const { tipoLabel } = useTiposOrden();
   const navigate   = useNavigate();
 
   const { data: c, isLoading, error } = useQuery({
@@ -229,7 +231,7 @@ export default function ClienteDetalle() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontWeight: 600, color: 'var(--txt)', fontSize: 13 }}>
-                          {o.tipoOrdenLabel || TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+                          {o.tipoOrdenLabel || tipoLabel(o.tipoOrden)}
                         </span>
                         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--accent)' }}>
                           #{o.nServicio}

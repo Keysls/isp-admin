@@ -6,7 +6,8 @@ import { Upload, Search, RefreshCw, X, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ordenesApi, tecnicosApi } from '../services/api';
 import { Card, EstadoBadge, Table, Tr, Td, Btn, Modal, Input, Select, Spinner, Empty, TimerBadge } from '../components/ui';
-import { fmtFecha, TIPO_LABEL, TIPO_COLOR, TIPOS_INTERNET, TIPOS_CABLE, TIPOS_DUO, ESTADO_CONFIG, TIPOS_SOLO_NOC } from '../utils/helpers';
+import { fmtFecha, TIPO_COLOR, ESTADO_CONFIG } from '../utils/helpers';
+import { useTiposOrden } from '../hooks/useTiposOrden';
 import DrawerOrden from '../components/DrawerOrden';
 
 function useIsMobile(breakpoint = 1081) {
@@ -103,7 +104,7 @@ function BarraSeleccion({ seleccionados, ordenes, onAsignarMasivo, onLimpiar }) 
 }
 
 // ── Tarjeta de orden para vista móvil ────────────────────────
-function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSeleccion }) {
+function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSeleccion, tipoLabel, esSoloNocFn }) {
   return (
     <div
       style={{
@@ -152,7 +153,7 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-            {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+            {tipoLabel(o.tipoOrden)}
           </span>
           <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>·</span>
           <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fmtFecha(o.fechaServicio)}</span>
@@ -163,7 +164,7 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
               ? `👷 ${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}`
               : 'Sin técnico asignado'}
           </span>
-          {!modoSeleccion && !o.tecnico && !TIPOS_SOLO_NOC.includes(o.tipoOrden) && 
+          {!modoSeleccion && !o.tecnico && !esSoloNocFn(o.tipoOrden) &&
               o.estado !== 'ACEPTADA' && 
               o.estado !== 'EN_PROCESO' && (
             <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
@@ -178,7 +179,7 @@ function OrdenCard({ o, onAsignar, onNavigate, seleccionado, onToggle, modoSelec
 }
 
 // ── Modal: Subir Excel ────────────────────────────────────────
-function ModalSubirExcel({ open, onClose }) {
+function ModalSubirExcel({ open, onClose, tipoLabel }) {
   const qc = useQueryClient();
 
   const isMobile = useIsMobile();
@@ -315,7 +316,7 @@ function ModalSubirExcel({ open, onClose }) {
                     <td style={{ padding: '7px 12px', color: 'var(--txt-2)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.direccion}</td>
                     <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-                        {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+                        {tipoLabel(o.tipoOrden)}
                       </span>
                     </td>
                     <td style={{ padding: '7px 12px', color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{o.sector}</td>
@@ -444,6 +445,7 @@ export default function OrdenesPage() {
   const navigate        = useNavigate();
   const [searchParams]  = useSearchParams();
   const isMobile        = useIsMobile();
+  const { tipoLabel, esSoloNoc: esSoloNocFn, grupos } = useTiposOrden();
   const [showExcel, setShowExcel]           = useState(false);
   const [ordenDrawer, setOrdenDrawer]       = useState(null);
   const [ordenAsignar, setOrdenAsignar]     = useState(null);   // asignación individual
@@ -470,7 +472,7 @@ export default function OrdenesPage() {
 
   const toggleTodos = () => {
     const elegibles = ordenes.filter(o =>
-        !TIPOS_SOLO_NOC.includes(o.tipoOrden) &&
+    !esSoloNocFn(o.tipoOrden) &&
         o.estado !== 'COMPLETADA' &&
         o.estado !== 'CANCELADA'
       );
@@ -507,9 +509,9 @@ export default function OrdenesPage() {
     queryFn:  () => ordenesApi.listar({
       ...filters,
       page, limit: 15,
-      ...(tab === 'internet' && { tipos: TIPOS_INTERNET.join(',') }),
-      ...(tab === 'cable'    && { tipos: TIPOS_CABLE.join(',') }),
-      ...(tab === 'duo'      && { tipos: TIPOS_DUO.join(',') }),
+      ...(tab === 'internet' && { tipos: (grupos.INTERNET || []).join(',') }),
+      ...(tab === 'cable'    && { tipos: (grupos.CABLE    || []).join(',') }),
+      ...(tab === 'duo'      && { tipos: (grupos.DUO      || []).join(',') }),
       ...(filters.tecnicoId  && { tecnicoId: filters.tecnicoId }),
     }).then(r => r.data),
     refetchInterval: 30000,
@@ -524,7 +526,7 @@ export default function OrdenesPage() {
   const meta    = data?.meta;
 
   // Derived: elegibles para selección (no son solo-NOC)
-  const elegibles = ordenes.filter(o => !TIPOS_SOLO_NOC.includes(o.tipoOrden));
+  const elegibles = ordenes.filter(o => !esSoloNocFn(o.tipoOrden));
   const todosSeleccionados = elegibles.length > 0 && elegibles.every(o => seleccionados.has(o.id));
   const algunoSeleccionado = elegibles.some(o => seleccionados.has(o.id));
   const modoSeleccion = seleccionados.size > 0;
@@ -696,6 +698,8 @@ export default function OrdenesPage() {
                   seleccionado={seleccionados.has(o.id)}
                   onToggle={() => toggleSeleccion(o)}
                   modoSeleccion={modoSeleccion}
+                  tipoLabel={tipoLabel}
+                  esSoloNocFn={esSoloNocFn}
                 />
               ))
             )}
@@ -714,7 +718,7 @@ export default function OrdenesPage() {
             {ordenes.length === 0 && !isLoading ? (
               <tr><td colSpan={9}><Empty icon="📋" title="Sin órdenes" subtitle="Importa un Excel para comenzar" /></td></tr>
             ) : ordenes.map(o => {
-              const esSoloNoc = TIPOS_SOLO_NOC.includes(o.tipoOrden);
+              const esSoloNoc = esSoloNocFn(o.tipoOrden);
               const seleccionado = seleccionados.has(o.id);
               return (
                 <Tr key={o.id}
@@ -722,7 +726,7 @@ export default function OrdenesPage() {
                   style={{ background: seleccionado ? 'color-mix(in srgb, var(--accent) 6%, var(--bg))' : undefined }}
                 >
                   <Td style={{ width: 36 }} onClick={e => e.stopPropagation()}>
-                    {!esSoloNoc && 
+                    {!esSoloNocFn(o.tipoOrden) && 
                     o.estado !== 'COMPLETADA' && 
                     o.estado !== 'CANCELADA' &&
                     o.estado !== 'ACEPTADA' &&
@@ -747,7 +751,7 @@ export default function OrdenesPage() {
                   </Td>
                   <Td>
                     <span style={{ fontSize: 11, fontWeight: 600, color: TIPO_COLOR[o.tipoOrden] }}>
-                      {TIPO_LABEL[o.tipoOrden] || o.tipoOrden}
+                      {tipoLabel(o.tipoOrden)}
                     </span>
                   </Td>
                   <Td style={{ fontSize: 12, color: 'var(--txt-2)', whiteSpace: 'nowrap' }}>
@@ -758,7 +762,7 @@ export default function OrdenesPage() {
                     {o.tecnico ? `${o.tecnico.usuario.nombre} ${o.tecnico.usuario.apellido}` : <span style={{ color: 'var(--txt-3)' }}>Sin asignar</span>}
                   </Td>
                   <Td>
-                    {!o.tecnico && !esSoloNoc && 
+                    {!o.tecnico && !esSoloNocFn(o.tipoOrden) && 
                       o.estado !== 'ACEPTADA' && 
                       o.estado !== 'EN_PROCESO' && (
                         <Btn variant="ghost" size="sm" icon={<UserCheck size={12} />}
@@ -793,7 +797,7 @@ export default function OrdenesPage() {
         onLimpiar={() => setOrdenesSeleccionadas(new Map())}
       />
 
-      <ModalSubirExcel open={showExcel} onClose={() => setShowExcel(false)} />
+      <ModalSubirExcel open={showExcel} onClose={() => setShowExcel(false)} tipoLabel={tipoLabel} />
       <DrawerOrden ordenId={ordenDrawer} onCerrar={() => setOrdenDrawer(null)} />
 
       {/* Modal individual */}
