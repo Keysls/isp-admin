@@ -199,8 +199,6 @@ export function Modal({ open, onClose, title, children, width = 480 }) {
       alignItems: 'center',
       justifyContent: 'center',
       background: 'rgba(0,0,0,0.6)',
-      backdropFilter: 'blur(6px)',
-      WebkitBackdropFilter: 'blur(6px)',
       padding: 20,
     }}>
       <div style={{
