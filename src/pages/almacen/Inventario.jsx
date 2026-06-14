@@ -15,7 +15,6 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
-
 const CSS = `
   .ainv-btns    { flex-wrap: wrap; }
   .ainv-table   { display: block; }
@@ -55,6 +54,12 @@ if (typeof document !== 'undefined' && !document.getElementById('ainv-responsive
   document.head.appendChild(s);
 }
 
+const dateInputStyle = {
+  width: '100%', padding: '9px 12px', background: 'var(--bg-3)',
+  border: '1px solid var(--border-2)', borderRadius: 8,
+  color: 'var(--txt)', fontSize: 13, outline: 'none',
+};
+
 const CATEGORIA_COLORS = {
   'rollo':           { bg: '#E6F1FB', color: '#0C447C' },
   'pasivos':         { bg: '#EEEDFE', color: '#3C3489' },
@@ -77,7 +82,7 @@ function useMiSede() {
     sedeId: usuario?.sedeId,
     sedeNombre: usuario?.sede?.nombre || 'Mi sede',
     puedeEnviarStock: usuario?.sede?.puedeEnviarStock || false,
-    esPrincipal: usuario?.sede?.esPrincipal || false,  // ← AGREGAR
+    esPrincipal: usuario?.sede?.esPrincipal || false,
   };
 }
 
@@ -263,21 +268,24 @@ export default function AdminAlmacenInventario() {
   const qc = useQueryClient();
   const { sedeId, sedeNombre, puedeEnviarStock, esPrincipal } = useMiSede();
   const [q, setQ] = useState('');
-  const qDebounced = useDebounce(q);  
+  const qDebounced = useDebounce(q);
   const [modal, setModal] = useState(null);
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
-  const [entrada, setEntrada] = useState({ comentario: '', items: [] });
+
+  const hoy = new Date().toISOString().split('T')[0];
+
+  const [entrada,    setEntrada]    = useState({ comentario: '', items: [], fecha: hoy });
   const [asignacion, setAsignacion] = useState({ tecnico_id: '', comentario: '', items: [], onu_ids: [] });
-  const [directa, setDirecta] = useState({ comentario: '', items: [], onu_ids: [] });
-  const [onuForm, setOnuForm] = useState({ producto_id: '', codigos_pon: [''] });
-  const [entradaSearch, setEntradaSearch] = useState('');
+  const [directa,    setDirecta]    = useState({ comentario: '', items: [], onu_ids: [], fecha: hoy });
+  const [onuForm,    setOnuForm]    = useState({ producto_id: '', codigos_pon: [''] });
+  const [entradaSearch,    setEntradaSearch]    = useState('');
   const [asignacionSearch, setAsignacionSearch] = useState('');
-  const [directaSearch, setDirectaSearch] = useState('');
-  const [envio, setEnvio] = useState({ sede_destino_id: '', guia: '', comentario: '', items: [] });
+  const [directaSearch,    setDirectaSearch]    = useState('');
+  const [envio,      setEnvio]      = useState({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy });
   const [envioSearch, setEnvioSearch] = useState('');
 
-  const stockQ = useQuery({ queryKey: ['admin-stock-sede', sedeId, qDebounced], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data) });
+  const stockQ          = useQuery({ queryKey: ['admin-stock-sede', sedeId, qDebounced], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data) });
   const productosQ      = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
   const tecnicosQ       = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
@@ -294,7 +302,17 @@ export default function AdminAlmacenInventario() {
 
   const entradaItemsValidos = entrada.items.filter(i => i.producto_id && Number(i.cantidad) > 0);
 
-  const entradaM = useMutation({ mutationFn: () => stockApi.entrada({ sedeId, comentario: entrada.comentario, items: entradaItemsValidos }), onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal(null); refresh(); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada') });
+  const entradaM = useMutation({
+    mutationFn: () => stockApi.entrada({
+      sedeId,
+      comentario: entrada.comentario,
+      fechaEntrada: entrada.fecha || hoy,
+      items: entradaItemsValidos,
+    }),
+    onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal(null); refresh(); },
+    onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada'),
+  });
+
   const asignarM = useMutation({
     mutationFn: () => {
       const itemsValidos = asignacion.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
@@ -305,44 +323,63 @@ export default function AdminAlmacenInventario() {
     onSuccess: () => { toast.success('Asignación registrada'); setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la asignación'),
   });
+
   const directaM = useMutation({
     mutationFn: () => {
       const itemsValidos = directa.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
       const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
       const itemsSoloNormales = itemsValidos.filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})).map(({ onu_ids, ...rest }) => rest);
-      return stockApi.salidaDirecta({ ...directa, items: itemsSoloNormales, onu_ids: onuIds });
+      return stockApi.salidaDirecta({
+        ...directa,
+        fechaSalida: directa.fecha || hoy,
+        items: itemsSoloNormales,
+        onu_ids: onuIds,
+      });
     },
-    onSuccess: () => { toast.success('Salida directa registrada'); setDirecta({ comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
+    onSuccess: () => { toast.success('Salida directa registrada'); setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la salida'),
   });
+
   const registrarOnuM = useMutation({
     mutationFn: () => Promise.all((onuForm.codigos_pon || []).filter(c => c.trim()).map(codigo_pon => onusApi.crear({ sedeId, producto_id: onuForm.producto_id, codigo_pon }))),
     onSuccess: (results) => { toast.success(`${results.length} ONU${results.length !== 1 ? 's' : ''} registrada${results.length !== 1 ? 's' : ''}`); setOnuForm({ producto_id: '', codigos_pon: [''] }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la ONU'),
   });
-  const confirmarEnvioM = useMutation({ mutationFn: (id) => stockApi.confirmarEnvio(id), onSuccess: () => { toast.success('Envío confirmado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar') });
-  const cancelarEnvioM  = useMutation({ mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }), onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); }, onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar') });
+
+  const confirmarEnvioM = useMutation({
+    mutationFn: (id) => stockApi.confirmarEnvio(id),
+    onSuccess: () => { toast.success('Envío confirmado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
+    onError: e => toast.error(e.response?.data?.error || 'No se pudo confirmar'),
+  });
+
+  const cancelarEnvioM = useMutation({
+    mutationFn: ({ id, motivo }) => stockApi.cancelarEnvio(id, { motivo }),
+    onSuccess: () => { toast.success('Envío cancelado'); setEnvioSeleccionado(null); setMotivoCancelacion(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
+    onError: e => toast.error(e.response?.data?.error || 'No se pudo cancelar'),
+  });
+
   const enviarStockM = useMutation({
-  mutationFn: () => {
-    const itemsNormales = envio.items.filter(i => {
-      const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-      const esOnu = !esPrincipal && isOnuProduct(prod || {});
-      return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
-    });
-    const onuIds = itemsNormales.flatMap(i => i.onu_ids || []);
-    const itemsSoloNormales = itemsNormales
-      .filter(i => !(!esPrincipal && isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})))
-      .map(({ onu_ids, ...rest }) => rest);
-    return stockApi.enviarSede({
-      sedeId,
-      sedeDestinoId: envio.sede_destino_id,
-      guia: envio.guia,
-      comentario: envio.comentario,
-      items: itemsSoloNormales,
-      onu_ids: onuIds,
-    });
-  },
-    onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [] }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
+    mutationFn: () => {
+      const itemsNormales = envio.items.filter(i => {
+        const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+        const esOnu = !esPrincipal && isOnuProduct(prod || {});
+        return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
+      });
+      const onuIds = itemsNormales.flatMap(i => i.onu_ids || []);
+      const itemsSoloNormales = itemsNormales
+        .filter(i => !(!esPrincipal && isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})))
+        .map(({ onu_ids, ...rest }) => rest);
+      return stockApi.enviarSede({
+        sedeId,
+        sedeDestinoId: envio.sede_destino_id,
+        guia: envio.guia,
+        comentario: envio.comentario,
+        fechaEnvio: envio.fecha || hoy,
+        items: itemsSoloNormales,
+        onu_ids: onuIds,
+      });
+    },
+    onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
 
@@ -392,16 +429,14 @@ export default function AdminAlmacenInventario() {
 
       {/* ── Barra de acciones + buscador ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {/* Buscador */}
         <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-2)', minWidth: 180 }}>
           <Search size={14} color="var(--txt-3)" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar ítem..." style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }} />
         </div>
-
-        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [] }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={15} />}>
+        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={15} />}>
           Registrar entrada
         </Btn>
-        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [] }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={15} />}>
+        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={15} />}>
           Salida directa
         </Btn>
         <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={15} />}>
@@ -440,20 +475,18 @@ export default function AdminAlmacenInventario() {
 
       {/* ── Tabla ── */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-
-        {/* Desktop */}
         <div className="ainv-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
                 {[
-                  { label: 'CÓDIGO',      w: '110px', align: 'left'   },
-                  { label: 'PRODUCTO',    w: undefined, align: 'left' },
-                  { label: 'CATEGORÍA',   w: '140px', align: 'left'   },
-                  { label: 'UNIDAD',      w: '90px',  align: 'center' },
-                  { label: 'STOCK',       w: '80px',  align: 'right'  },
+                  { label: 'CÓDIGO',    w: '110px', align: 'left'   },
+                  { label: 'PRODUCTO',  w: undefined, align: 'left' },
+                  { label: 'CATEGORÍA', w: '140px', align: 'left'   },
+                  { label: 'UNIDAD',    w: '90px',  align: 'center' },
+                  { label: 'STOCK',     w: '80px',  align: 'right'  },
                   ...(hayMedibles ? [{ label: 'METROS DISP.', w: '130px', align: 'right' }] : []),
-                  { label: 'ESTADO',      w: '110px', align: 'center' },
+                  { label: 'ESTADO',    w: '110px', align: 'center' },
                 ].map(h => (
                   <th key={h.label} style={{ padding: '10px 14px', textAlign: h.align, fontSize: 11, fontWeight: 600, color: 'var(--txt-3)', letterSpacing: '0.05em', width: h.w, whiteSpace: 'nowrap' }}>
                     {h.label}
@@ -473,44 +506,16 @@ export default function AdminAlmacenInventario() {
                 const badgeStyle = categoriaBadgeStyle(p.categoria);
                 return (
                   <tr key={p.producto_id} className="ainv-row-hover" style={{ borderTop: '1px solid var(--border)' }}>
-
-                    {/* Código */}
-                    <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>
-                      {p.codigo || '—'}
-                    </td>
-
-                    {/* Producto */}
+                    <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{p.codigo || '—'}</td>
+                    <td style={{ padding: '12px 14px' }}><div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.producto}</div></td>
                     <td style={{ padding: '12px 14px' }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.producto}</div>
+                      {p.categoria
+                        ? <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>{p.categoria}</span>
+                        : <span style={{ color: 'var(--txt-3)' }}>—</span>}
                     </td>
-
-                    {/* Categoría */}
-                    <td style={{ padding: '12px 14px' }}>
-                      {p.categoria ? (
-                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
-                          {p.categoria}
-                        </span>
-                      ) : <span style={{ color: 'var(--txt-3)' }}>—</span>}
-                    </td>
-
-                    {/* Unidad */}
-                    <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 12, color: 'var(--txt-2)' }}>
-                      {p.unidad || '—'}
-                    </td>
-
-                    {/* Stock */}
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                      <StockBar stock={p.cantidad} minimo={p.stock_minimo} />
-                    </td>
-
-                    {/* Metros disp. */}
-                    {hayMedibles && (
-                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                        <MetrosCell p={p} />
-                      </td>
-                    )}
-
-                    {/* Estado */}
+                    <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 12, color: 'var(--txt-2)' }}>{p.unidad || '—'}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}><StockBar stock={p.cantidad} minimo={p.stock_minimo} /></td>
+                    {hayMedibles && <td style={{ padding: '12px 14px', textAlign: 'right' }}><MetrosCell p={p} /></td>}
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         {low
@@ -576,6 +581,7 @@ export default function AdminAlmacenInventario() {
 
       {/* ══ MODALES ══════════════════════════════════════════ */}
 
+      {/* Modal: Registrar entrada */}
       {modal === 'entrada' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -584,6 +590,10 @@ export default function AdminAlmacenInventario() {
               selected={entrada.items} onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
             <ItemsList stock={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, cantidad: null }))}
               items={entrada.items} setItems={items => setEntrada({ ...entrada, items })} showDisponible={false} allowOnu={false} />
+            <div>
+              <label style={{ display: 'block', marginBottom: 5, fontSize: 12, color: 'var(--txt-2)', fontWeight: 500 }}>Fecha de entrada</label>
+              <input type="date" value={entrada.fecha} onChange={e => setEntrada({ ...entrada, fecha: e.target.value })} style={dateInputStyle} />
+            </div>
             <Input label="Comentario" value={entrada.comentario} onChange={e => setEntrada({ ...entrada, comentario: e.target.value })} />
             <Btn onClick={() => entradaM.mutate()} disabled={!sedeId || entradaItemsValidos.length === 0 || entradaM.isPending} icon={<Check size={15} />}>
               Registrar ({entradaItemsValidos.length})
@@ -592,6 +602,7 @@ export default function AdminAlmacenInventario() {
         </UIModal>
       )}
 
+      {/* Modal: ONUs */}
       {modal === 'onu' && (() => {
         const productoActual = productosOnu.find(p => String(p.producto_id) === String(onuForm.producto_id));
         const onusData     = onusExistentesQ.data || [];
@@ -683,6 +694,7 @@ export default function AdminAlmacenInventario() {
         );
       })()}
 
+      {/* Modal: Asignar a técnico */}
       {modal === 'asignar' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Asignar stock a técnico">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -698,17 +710,23 @@ export default function AdminAlmacenInventario() {
         </UIModal>
       )}
 
+      {/* Modal: Salida directa */}
       {modal === 'directa' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <ProductSearch label="Buscar producto" search={directaSearch} setSearch={setDirectaSearch} products={stock.filter(s => s.cantidad > 0)} selected={directa.items} onAdd={p => setDirecta({ ...directa, items: [...directa.items, { producto_id: String(p.producto_id), cantidad: '', onu_ids: [] }] })} />
             <ItemsList stock={stock} items={directa.items} setItems={items => setDirecta({ ...directa, items })} sedeId={sedeId} />
+            <div>
+              <label style={{ display: 'block', marginBottom: 5, fontSize: 12, color: 'var(--txt-2)', fontWeight: 500 }}>Fecha de salida</label>
+              <input type="date" value={directa.fecha} onChange={e => setDirecta({ ...directa, fecha: e.target.value })} style={dateInputStyle} />
+            </div>
             <Input label="Motivo / comentario" value={directa.comentario} onChange={e => setDirecta({ ...directa, comentario: e.target.value })} />
             <Btn onClick={() => directaM.mutate()} disabled={!directa.comentario || directa.items.length === 0 || directaM.isPending} icon={<Check size={15} />}>Confirmar salida</Btn>
           </div>
         </UIModal>
       )}
 
+      {/* Modal: Confirmar recepción */}
       {modal === 'confirmar-envio' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Confirmar recepción">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -726,6 +744,7 @@ export default function AdminAlmacenInventario() {
         </UIModal>
       )}
 
+      {/* Modal: Cancelar envío */}
       {modal === 'cancelar-envio' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Cancelar envío">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -743,6 +762,7 @@ export default function AdminAlmacenInventario() {
         </UIModal>
       )}
 
+      {/* Modal: Enviar a sede */}
       {modal === 'envio' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Enviar stock a otra sede">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -753,6 +773,10 @@ export default function AdminAlmacenInventario() {
                 {(sedesQ.data || []).filter(s => String(s.id) !== String(sedeId)).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
               </Select>
               <Input label="Número de guía / tracking" value={envio.guia} onChange={e => setEnvio({ ...envio, guia: e.target.value })} placeholder="Ej: GU-2024-001" />
+              <div>
+                <label style={{ display: 'block', marginBottom: 5, fontSize: 12, color: 'var(--txt-2)', fontWeight: 500 }}>Fecha de envío</label>
+                <input type="date" value={envio.fecha} onChange={e => setEnvio({ ...envio, fecha: e.target.value })} style={dateInputStyle} />
+              </div>
             </div>
             <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 16, paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Productos a enviar</div>
@@ -800,7 +824,7 @@ export default function AdminAlmacenInventario() {
                   return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
                 }) ||
                 enviarStockM.isPending
-              }  icon={<Send size={15} />} style={{ fontWeight: 700, background: '#185FA5', color: '#fff', border: 'none' }}>
+              } icon={<Send size={15} />} style={{ fontWeight: 700, background: '#185FA5', color: '#fff', border: 'none' }}>
                 Confirmar envío ({envio.items.reduce((total, i) => {
                   const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
                   const esOnu = !esPrincipal && isOnuProduct(prod || {});
