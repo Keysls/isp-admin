@@ -55,8 +55,9 @@ export const useAuthStore = create((set) => ({
         return { ok: false, error: 'Tu usuario no tiene sede asignada. Contacta al administrador.' };
       }
 
-      localStorage.setItem('admin_token', data.token);
-      localStorage.setItem('admin_usuario', JSON.stringify(data.usuario));
+      localStorage.setItem('admin_token',         data.token);
+      localStorage.setItem('admin_refresh_token', data.refreshToken || '');
+      localStorage.setItem('admin_usuario',        JSON.stringify(data.usuario));
       set({ token: data.token, usuario: data.usuario, loading: false });
       return { ok: true };
     } catch (err) {
@@ -68,6 +69,7 @@ export const useAuthStore = create((set) => ({
   logout: async () => {
     try { await authApi.logout(); } catch {}
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh_token');
     localStorage.removeItem('admin_usuario');
     set({ token: null, usuario: null });
   },

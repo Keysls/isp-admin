@@ -10,18 +10,69 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Interceptor de refresh token automático ──────────────────
+let refreshingToken = false;
+let refreshQueue    = [];
+
+const procesarQueue = (error, token = null) => {
+  refreshQueue.forEach(({ resolve, reject }) =>
+    error ? reject(error) : resolve(token)
+  );
+  refreshQueue = [];
+};
+
 api.interceptors.response.use(
   res => res,
-  err => {
-    // No redirigir si el 401 viene del propio endpoint de login
-    // (en ese caso el error es "credenciales incorrectas", lo maneja el formulario)
-    const esLogin = err.config?.url?.includes('/auth/login');
+  async err => {
+    const originalRequest = err.config;
+    const esLogin         = originalRequest?.url?.includes('/auth/login');
+    const esRefresh       = originalRequest?.url?.includes('/auth/refresh');
 
-    if (err.response?.status === 401 && !esLogin) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_usuario');
-      window.location.href = '/login';
+    if (err.response?.status === 401 && !esLogin && !esRefresh && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('admin_refresh_token');
+
+      if (!refreshToken) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_usuario');
+        localStorage.removeItem('admin_refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(err);
+      }
+
+      if (refreshingToken) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      refreshingToken        = true;
+
+      try {
+        const { data } = await api.post('/auth/refresh', { refreshToken });
+        const nuevoToken = data.token;
+
+        localStorage.setItem('admin_token', nuevoToken);
+        api.defaults.headers.common.Authorization = `Bearer ${nuevoToken}`;
+        originalRequest.headers.Authorization     = `Bearer ${nuevoToken}`;
+
+        procesarQueue(null, nuevoToken);
+        return api(originalRequest);
+      } catch (refreshErr) {
+        procesarQueue(refreshErr, null);
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_usuario');
+        localStorage.removeItem('admin_refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(refreshErr);
+      } finally {
+        refreshingToken = false;
+      }
     }
+
     return Promise.reject(err);
   }
 );
