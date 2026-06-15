@@ -1,54 +1,55 @@
 import { create } from 'zustand';
 import { authApi } from '../services/api';
 
-// ── Lectura defensiva del localStorage ───────────────────────
-// Si está corrupto, limpiamos todo en lugar de crashear la app
 const cargarUsuarioInicial = () => {
   try {
     const stored = localStorage.getItem('admin_usuario');
     return stored ? JSON.parse(stored) : null;
   } catch (e) {
-    console.warn('localStorage admin_usuario corrupto, limpiando sesión');
     localStorage.removeItem('admin_usuario');
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh_token');
     return null;
   }
 };
 
-// ── Helper: invalidar TokenSesion huérfano ───────────────────
-// Cuando el backend nos dio token pero rechazamos client-side,
-// hacemos logout para que no quede una sesión activa 7 días en BD
 const invalidarTokenHuerfano = async (token) => {
   try {
-    // Set temporal para que el interceptor de axios lo use
     localStorage.setItem('admin_token', token);
     await authApi.logout();
   } catch {
-    /* no nos importa si falla — al menos lo intentamos */
   } finally {
     localStorage.removeItem('admin_token');
   }
 };
 
-export const useAuthStore = create((set) => ({
-  usuario: cargarUsuarioInicial(),
-  token:   localStorage.getItem('admin_token') || null,
-  loading: false,
+export const useAuthStore = create((set, get) => ({
+  usuario:        cargarUsuarioInicial(),
+  token:          localStorage.getItem('admin_token')         || null,
+  refreshToken:   localStorage.getItem('admin_refresh_token') || null,
+  loading:        false,
+  requiere2FA:    false,
+  emailPendiente: '',
+  _passwordTemp:  '',
 
+  // ── Login paso 1: email + password ──────────────────────────
   login: async (email, password) => {
-    set({ loading: true });
+    set({ loading: true, requiere2FA: false });
     try {
       const { data } = await authApi.login({ email, password, dispositivo: 'Panel Admin' });
 
-      // ADMIN y SECRETARIA acceden al panel admin
-      // SUPERADMIN tiene su propio panel (NOC)
+      // Backend pide código 2FA
+      if (data.requiere2FA) {
+        set({ loading: false, requiere2FA: true, emailPendiente: email });
+        return { ok: false, requiere2FA: true };
+      }
+
       if (!['ADMIN', 'SECRETARIA'].includes(data.usuario.rol)) {
         await invalidarTokenHuerfano(data.token);
         set({ loading: false });
         return { ok: false, error: 'No tienes acceso al panel de administrador' };
       }
 
-      // ADMIN debe tener sede asignada
       if (!data.usuario.sedeId) {
         await invalidarTokenHuerfano(data.token);
         set({ loading: false });
@@ -58,7 +59,7 @@ export const useAuthStore = create((set) => ({
       localStorage.setItem('admin_token',         data.token);
       localStorage.setItem('admin_refresh_token', data.refreshToken || '');
       localStorage.setItem('admin_usuario',        JSON.stringify(data.usuario));
-      set({ token: data.token, usuario: data.usuario, loading: false });
+      set({ token: data.token, refreshToken: data.refreshToken || null, usuario: data.usuario, loading: false, requiere2FA: false });
       return { ok: true };
     } catch (err) {
       set({ loading: false });
@@ -66,12 +67,51 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  // ── Login paso 2: código TOTP ────────────────────────────────
+  login2FA: async (totpCodigo) => {
+    const { emailPendiente, _passwordTemp } = get();
+    set({ loading: true });
+    try {
+      const { data } = await authApi.login({
+        email:       emailPendiente,
+        password:    _passwordTemp,
+        totpCodigo,
+        dispositivo: 'Panel Admin',
+      });
+
+      if (!['ADMIN', 'SECRETARIA'].includes(data.usuario.rol)) {
+        await invalidarTokenHuerfano(data.token);
+        set({ loading: false });
+        return { ok: false, error: 'No tienes acceso al panel de administrador' };
+      }
+
+      localStorage.setItem('admin_token',         data.token);
+      localStorage.setItem('admin_refresh_token', data.refreshToken || '');
+      localStorage.setItem('admin_usuario',        JSON.stringify(data.usuario));
+      set({
+        token:         data.token,
+        refreshToken:  data.refreshToken || null,
+        usuario:       data.usuario,
+        loading:       false,
+        requiere2FA:   false,
+        emailPendiente: '',
+        _passwordTemp: '',
+      });
+      return { ok: true };
+    } catch (err) {
+      set({ loading: false });
+      return { ok: false, error: err.response?.data?.error || 'Código incorrecto' };
+    }
+  },
+
+  guardarPasswordTemp: (password) => set({ _passwordTemp: password }),
+
   logout: async () => {
     try { await authApi.logout(); } catch {}
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_refresh_token');
     localStorage.removeItem('admin_usuario');
-    set({ token: null, usuario: null });
+    set({ token: null, refreshToken: null, usuario: null, requiere2FA: false });
   },
 
   updateUsuario: (cambios) => {
@@ -81,5 +121,4 @@ export const useAuthStore = create((set) => ({
       return { usuario: nuevoUsuario };
     });
   },
-  
 }));
