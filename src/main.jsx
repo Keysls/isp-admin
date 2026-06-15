@@ -17,6 +17,7 @@ import TecnicosPage      from './pages/Tecnicos';
 import SecretariosPage   from './pages/Secretarios';
 import ReportesPage      from './pages/Reportes';
 import PerfilPage        from './pages/Perfil';
+import ResetPasswordPage from './pages/ResetPassword';
 import MapaPage          from './pages/Mapa';
 import ProgramarPage     from './pages/Programar'; //SE AGREGO
 import PlanesPage from './pages/Planes';
@@ -44,7 +45,8 @@ function App() {
   return (
 <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        <Route path="/login" element={token ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/login"          element={token ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/*" element={
           <ProtectedRoute>
             <Layout>

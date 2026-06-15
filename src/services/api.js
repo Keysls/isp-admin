@@ -78,9 +78,13 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  login:  (data) => api.post('/auth/login', data),
-  logout: ()     => api.post('/auth/logout'),
-  me:     ()     => api.get('/auth/me'),
+  login:           (data)   => api.post('/auth/login', data),
+  logout:          ()       => api.post('/auth/logout'),
+  me:              ()       => api.get('/auth/me'),
+  cambiarPassword: (data)   => api.patch('/auth/cambiar-password', data),
+  generar2fa:      ()       => api.post('/auth/2fa/generar'),
+  activar2fa:      (codigo) => api.post('/auth/2fa/activar', { codigo }),
+  desactivar2fa:   (codigo) => api.post('/auth/2fa/desactivar', { codigo }),
 };
 
 // Técnicos — el admin solo ve/crea los de su sede (backend lo filtra automáticamente)

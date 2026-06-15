@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, UserCircle, Menu, PanelLeft, Bell, BellOff } from 'lucide-react';
+import { ChevronDown, LogOut, UserCircle, Menu, PanelLeft, Bell, BellOff, Key, Shield } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificacionesApi } from '../../services/api';
@@ -305,6 +305,18 @@ export default function Topbar({ esMovil, colapsado, anchoSidebar, onMenuToggle,
                     onMouseEnter={e => { e.currentTarget.style.background = '#F4F8FC'; e.currentTarget.style.color = '#1E3A8A'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5A7A9A'; }}>
                     <UserCircle size={15}/> Mi perfil
+                  </button>
+                  <button
+                    onClick={() => { setShowMenu(false); navigate('/perfil#2fa'); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                      padding: '8px 10px', borderRadius: 8,
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      fontSize: 13, color: '#1E3A8A',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#EEF3FC'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    <Shield size={15}/> Autenticación 2FA
                   </button>
                   <button
                     onClick={() => { setShowMenu(false); logout(); }}
