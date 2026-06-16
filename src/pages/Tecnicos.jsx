@@ -147,8 +147,9 @@ function ModalInventario({ open, onClose, tecnico }) {
       (data?.consumos || []).map(c => ({
         'Producto':  c.nombre,
         'Cantidad':  c.cantidad,
-        'Contrato':  c.nServicio || '—',
+        'Contrato':  c.contrato  || '—',
         'Abonado':   c.abonado   || '—',
+        'PON-SN':    c.codigoPon || '—',
         'Fecha':     c.fecha ? new Date(c.fecha).toLocaleDateString('es-PE') : '—',
       }))
     ), 'Gastos');
@@ -328,9 +329,9 @@ function ModalInventario({ open, onClose, tecnico }) {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{c.nombre}</div>
-                      {(c.nServicio || c.abonado) && (
+                      {(c.contrato || c.abonado) && (
                         <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, marginTop: 2 }}>
-                          📋 {c.nServicio && `Contrato ${c.nServicio}`}{c.abonado && ` · ${c.abonado}`}
+                          📋 {c.contrato && `Contrato ${c.contrato}`}{c.abonado && ` · ${c.abonado}`}
                         </div>
                       )}
                       {c.descripcion && !c.descripcion.startsWith('Orden:') && (
@@ -413,8 +414,9 @@ function ModalInventario({ open, onClose, tecnico }) {
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--txt)' }}>{h.item || h.producto}</div>
                       <div style={{ fontSize: 11, color: 'var(--txt-3)', display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 1 }}>
                         <span style={{ color: tipoMeta.color, fontWeight: 600 }}>{tipoMeta.label}</span>
-                        {h.nServicio && <span>· Contrato {h.nServicio}</span>}
+                        {h.contrato  && <span>· Contrato {h.contrato}</span>}
                         {h.abonado   && <span>· {h.abonado}</span>}
+                        {h.codigoPon && <span style={{ fontFamily: 'var(--font-mono)', color: '#7c3aed', fontWeight: 600 }}>· ◈ {h.codigoPon}</span>}
                         {h.comentario && !h.comentario.match(/^Orden:\s*[0-9a-f-]{36}$/i) && <span>· {h.comentario}</span>}
                       </div>
                     </div>
