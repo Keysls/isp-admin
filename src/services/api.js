@@ -123,6 +123,7 @@ export const usuariosApi = {
   crearSecretario:   (data)       => api.post('/usuarios/secretarios', data),
   actualizar:        (id, data)   => api.patch(`/usuarios/${id}`, data),
   resetPassword:     (id, data)   => api.patch(`/usuarios/${id}/password`, data),
+  desactivar2fa:     (id)         => api.patch(`/usuarios/${id}/desactivar-2fa`),
 };
 
 export const contratosApi = {

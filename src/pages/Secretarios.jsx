@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Pencil, Lock, PowerOff, Power, Mail, Phone, CreditCard } from 'lucide-react';
+import { UserPlus, Pencil, Lock, PowerOff, Power, Mail, Phone, CreditCard, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { usuariosApi } from '../services/api';
+import { usuariosApi, authApi } from '../services/api';
 import { Card, Btn, Modal, Input, Avatar, Spinner, Empty } from '../components/ui';
 import { useAuthStore } from '../store/auth.store';
+
 
 // ─── CSS responsivo ───────────────────────────────────────────
 const CSS = `
@@ -42,6 +43,7 @@ const CSS = `
     .sec-btn-label { display: none !important; }
   }
 `;
+
 if (typeof document !== 'undefined' && !document.getElementById('sec-responsive-css')) {
   const s = document.createElement('style');
   s.id = 'sec-responsive-css';
@@ -315,6 +317,18 @@ export default function SecretariosPage() {
                 <Btn variant="ghost" size="sm" icon={<Lock size={11}/>}   onClick={() => setCambiandoPass(s)}>
                   <span className="sec-btn-label">Contraseña</span>
                 </Btn>
+                {s.totpActivo && (
+                  <Btn variant="danger" size="sm" icon={<Shield size={11}/>}
+                    onClick={() => {
+                      if (confirm(`¿Desactivar 2FA de ${s.nombre} ${s.apellido}?\n\nÚsalo solo si perdió acceso a su autenticador.`)) {
+                        usuariosApi.desactivar2fa(s.id)
+                          .then(() => { toast.success(`2FA de ${s.nombre} desactivado`); qc.invalidateQueries(['secretarios']); })
+                          .catch(e => toast.error(e.response?.data?.error || 'Error al desactivar 2FA'));
+                      }
+                    }}>
+                    <span className="sec-btn-label">Quitar 2FA</span>
+                  </Btn>
+                )}
                 <Btn
                   variant={s.activo ? 'danger' : 'ghost'}
                   size="sm"
