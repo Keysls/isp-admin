@@ -457,11 +457,11 @@ export default function ClientesPage() {
               <Empty icon="🔍" title="Sin clientes" subtitle={busqueda || filtroEstado ? 'Prueba ajustando los filtros' : 'Aún no hay contratos registrados'} />
             ) : contratos.map(c => (
               <ClienteCard
-                key={c.numero}
+                key={`${c.sede?.id ?? 'sin-sede'}-${c.numero}`}
                 c={c}
                 eColor={ESTADO_COLOR[c.estado] || '#768999'}
                 eLabel={FILTROS_ESTADO.find(f => f.key === c.estado)?.label || c.estado}
-                onClick={() => setContratoSel(c.numero)}
+                onClick={() => setContratoSel({ numero: c.numero, sedeId: c.sede?.id })}
                 tipoLabel={tipoLabel}
               />
             ))}
@@ -477,7 +477,7 @@ export default function ClientesPage() {
               const eColor = ESTADO_COLOR[c.estado] || '#768999';
               const eLabel = FILTROS_ESTADO.find(f => f.key === c.estado)?.label || c.estado;
               return (
-                <Tr key={c.numero} onClick={() => setContratoSel(c.numero)}>
+                <Tr key={`${c.sede?.id ?? 'sin-sede'}-${c.numero}`} onClick={() => setContratoSel({ numero: c.numero, sedeId: c.sede?.id })}>
                   <Td>
                     <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
                       {c.numero}
@@ -565,7 +565,7 @@ export default function ClientesPage() {
         Mostrando {contratos.length} de {total} contrato{total !== 1 ? 's' : ''}
       </div>
 
-      <DrawerCliente numero={contratoSel} onCerrar={() => setContratoSel(null)} />
+      <DrawerCliente numero={contratoSel?.numero} sedeId={contratoSel?.sedeId} onCerrar={() => setContratoSel(null)} />
       <ModalImportarContratos open={showImport} onClose={() => setShowImport(false)} />
 
     </div>

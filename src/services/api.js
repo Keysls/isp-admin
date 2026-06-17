@@ -128,7 +128,7 @@ export const usuariosApi = {
 
 export const contratosApi = {
   listar:         (params) => api.get('/contratos', { params }),
-  obtener:        (numero) => api.get(`/contratos/${numero}`),
+  obtener:        (numero, sedeId) => api.get(`/contratos/${numero}`, { params: sedeId ? { sedeId } : {} }),
   mapa:           (params) => api.get('/contratos/mapa', { params }),   // ← NUEVO
   subirExcel:     (formData) => api.post('/contratos/subir-excel', formData),
   confirmarExcel: (data)     => api.post('/contratos/confirmar-excel', data),

@@ -30,7 +30,7 @@ const ESTADO_ORDEN = {
   REPROGRAMADA:      { label: 'Reprogramada',  color: '#7c3aed' },
 };
 
-export default function DrawerCliente({ numero, onCerrar }) {
+export default function DrawerCliente({ numero, sedeId, onCerrar }) {
   const navigate = useNavigate();
   const { tipoLabel } = useTiposOrden();
   const abierto  = !!numero;
@@ -46,8 +46,8 @@ export default function DrawerCliente({ numero, onCerrar }) {
   }, [abierto]);
 
   const { data: c, isLoading, error } = useQuery({
-    queryKey: ['contrato', numero],
-    queryFn:  () => contratosApi.obtener(numero).then(r => r.data),
+    queryKey: ['contrato', numero, sedeId],
+    queryFn:  () => contratosApi.obtener(numero, sedeId).then(r => r.data),
     enabled:  abierto,
     staleTime: 30000,
   });
