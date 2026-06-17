@@ -303,35 +303,47 @@ export default function AdminAlmacenInventario() {
   const entradaItemsValidos = entrada.items.filter(i => i.producto_id && Number(i.cantidad) > 0);
 
   const entradaM = useMutation({
-    mutationFn: () => stockApi.entrada({
-      sedeId,
-      comentario: entrada.comentario,
-      fechaEntrada: entrada.fecha || hoy,
-      items: entradaItemsValidos,
-    }),
+    mutationFn: () => {
+      const ahora = new Date();
+      const horaActual = `T${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}:${String(ahora.getSeconds()).padStart(2,'0')}`;
+      return stockApi.entrada({
+        sedeId,
+        comentario: entrada.comentario,
+        fechaEntrada: entrada.fecha ? entrada.fecha + horaActual : null,
+        items: entradaItemsValidos,
+      });
+    },
     onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada'),
   });
 
   const asignarM = useMutation({
-    mutationFn: () => {
-      const itemsValidos = asignacion.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
-      const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
-      const itemsSoloNormales = itemsValidos.filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})).map(({ onu_ids, ...rest }) => rest);
-      return stockApi.asignarCompleto({ ...asignacion, items: itemsSoloNormales, onu_ids: onuIds });
-    },
-    onSuccess: () => { toast.success('Asignación registrada'); setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
-    onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la asignación'),
-  });
+  mutationFn: () => {
+    const itemsValidos = asignacion.items.filter(i => {
+      const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+      const esOnu = isOnuProduct(prod || {});
+      return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0);
+    });
+    const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
+    const itemsSoloNormales = itemsValidos
+      .filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {}))
+      .map(({ onu_ids, ...rest }) => rest);
+    return stockApi.asignarCompleto({ ...asignacion, items: itemsSoloNormales, onu_ids: onuIds });
+  },
+  onSuccess: () => { toast.success('Asignación registrada'); setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setModal(null); refresh(); },
+  onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la asignación'),
+});
 
   const directaM = useMutation({
     mutationFn: () => {
       const itemsValidos = directa.items.filter(i => { const prod = stock.find(s => String(s.producto_id) === String(i.producto_id)); const esOnu = isOnuProduct(prod || {}); return i.producto_id && (esOnu ? (i.onu_ids || []).length > 0 : Number(i.cantidad) > 0); });
       const onuIds = itemsValidos.flatMap(i => i.onu_ids || []);
       const itemsSoloNormales = itemsValidos.filter(i => !isOnuProduct(stock.find(s => String(s.producto_id) === String(i.producto_id)) || {})).map(({ onu_ids, ...rest }) => rest);
+      const ahora = new Date();
+      const horaActual = `T${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}:${String(ahora.getSeconds()).padStart(2,'0')}`;
       return stockApi.salidaDirecta({
         ...directa,
-        fechaSalida: directa.fecha || hoy,
+        fechaSalida: directa.fecha ? directa.fecha + horaActual : null,
         items: itemsSoloNormales,
         onu_ids: onuIds,
       });
@@ -374,7 +386,12 @@ export default function AdminAlmacenInventario() {
         sedeDestinoId: envio.sede_destino_id,
         guia: envio.guia,
         comentario: envio.comentario,
-        fechaEnvio: envio.fecha || hoy,
+        fechaEnvio: (() => {
+          if (!envio.fecha) return null;
+          const ahora = new Date();
+          const horaActual = `T${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}:${String(ahora.getSeconds()).padStart(2,'0')}`;
+          return envio.fecha + horaActual;
+        })(),
         items: itemsSoloNormales,
         onu_ids: onuIds,
       });
