@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, RefreshCw, Package, Recycle } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Package, FileSpreadsheet, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { stockApi } from '../services/api';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // ── Estilos ───────────────────────────────────────────────────
 const S = {
   page:    { padding: 24, maxWidth: 900, margin: '0 auto' },
-  header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 },
   title:   { fontSize: 20, fontWeight: 700, color: 'var(--txt)', margin: 0 },
-  tabs:    { display: 'flex', gap: 8, marginBottom: 20 },
+  tabs:    { display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
   tab:     (active) => ({
     padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600,
     cursor: 'pointer', border: '1px solid',
@@ -74,6 +77,7 @@ const S = {
     borderRadius: 8, padding: '9px 12px', fontSize: 14, color: 'var(--txt)',
     outline: 'none', marginTop: 8, marginBottom: 14,
   },
+  exportButtons: { display: 'flex', gap: 6 },
 };
 
 const fmtFecha = (iso) => {
@@ -85,7 +89,7 @@ const fmtFecha = (iso) => {
 export default function DevolucionesPage() {
   const qc = useQueryClient();
   const [tabEstado, setTabEstado] = useState('pendiente');
-  const [modalRechazo, setModalRechazo]   = useState(null); // { id, tipo: 'devolucion' }
+  const [modalRechazo, setModalRechazo]   = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
 
   const { data: devoluciones = [], isLoading, refetch } = useQuery({
@@ -116,14 +120,89 @@ export default function DevolucionesPage() {
     onError: (e) => toast.error(e.response?.data?.error || 'Error'),
   });
 
+  // ── Export functions ──────────────────────────────────────
+  const buildExportData = () => {
+    if (!devoluciones.length) return [];
+    return devoluciones.map(dev => ({
+      Técnico: `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
+      Fecha: fmtFecha(dev.fecha),
+      Estado: dev.estado,
+      Materiales: dev.detalles.map(d => `${d.nombre} x${d.cantidad} ${d.unidad || ''}`).join('; '),
+      'Equipos reciclados': dev.recojos
+        .filter(r => r.tipoEquipo !== 'ONU')
+        .map(r => `${r.tipoEquipo}${r.codigoPon ? ' ('+r.codigoPon+')' : ''} [${r.estado}]`).join('; '),
+      'ONUs devueltas': dev.recojos
+        .filter(r => r.tipoEquipo === 'ONU')
+        .map(r => `${r.nombreProducto || 'ONU'}${r.codigoPon ? ' ('+r.codigoPon+')' : ''}`).join('; '),
+      Comentario: dev.comentario || '',
+    }));
+  };
+
+  const exportToExcel = () => {
+    const data = buildExportData();
+    if (!data.length) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Devoluciones');
+    XLSX.writeFile(wb, `devoluciones_${tabEstado}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast.success('Exportado a Excel');
+  };
+
+  const exportToPDF = () => {
+    const data = buildExportData();
+    if (!data.length) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    doc.text('Reporte de Devoluciones', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Estado: ${tabEstado} | Generado: ${new Date().toLocaleString()}`, 14, 22);
+
+    const headers = Object.keys(data[0]);
+    const rows = data.map(obj => Object.values(obj));
+
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: 28,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 40 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 30 }
+      },
+      margin: { left: 10, right: 10 },
+    });
+
+    doc.save(`devoluciones_${tabEstado}_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast.success('Exportado a PDF');
+  };
+
+  // ── Render ────────────────────────────────────────────────
   return (
     <div style={S.page}>
       {/* Header */}
       <div style={S.header}>
         <h1 style={S.title}>Devoluciones de técnicos</h1>
-        <button style={S.btn('ghost')} onClick={() => refetch()}>
-          <RefreshCw size={13} /> Actualizar
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={S.exportButtons}>
+            <button style={S.btn('ghost')} onClick={exportToExcel} title="Exportar a Excel">
+              <FileSpreadsheet size={16} /> Excel
+            </button>
+          </div>
+          <button style={S.btn('ghost')} onClick={() => refetch()}>
+            <RefreshCw size={13} /> Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -176,36 +255,35 @@ export default function DevolucionesPage() {
               </>
             )}
 
-            {/* ONUs devueltas — aparecen como recojos con tipoEquipo ONU */}
-              {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').length > 0 && (
-                <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#5B21B6', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    ◈ ONUs a devolver
-                  </div>
-                  {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').map(o => (
-
-                    <div key={o.id} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 10px', borderRadius: 8, marginBottom: 6,
-                      background: '#F5F3FF', border: '1px solid #DDD6FE',
-                    }}>
-                      <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6' }}>
-                            {o.nombreProducto || 'ONU'}
-                          </div>
-                          {o.codigoPon && (
-                            <div style={{ fontSize: 11, color: '#7C3AED', fontFamily: 'monospace' }}>
-                              ◈ {o.codigoPon}
-                            </div>
-                          )}
-                        </div>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#EDE9FE', color: '#6D28D9' }}>
-                        Pendiente
-                      </span>
-                    </div>
-                  ))}
+            {/* ONUs devueltas */}
+            {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').length > 0 && (
+              <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#5B21B6', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  ◈ ONUs a devolver
                 </div>
-              )}
+                {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').map(o => (
+                  <div key={o.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: 8, marginBottom: 6,
+                    background: '#F5F3FF', border: '1px solid #DDD6FE',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6' }}>
+                        {o.nombreProducto || 'ONU'}
+                      </div>
+                      {o.codigoPon && (
+                        <div style={{ fontSize: 11, color: '#7C3AED', fontFamily: 'monospace' }}>
+                          ◈ {o.codigoPon}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#EDE9FE', color: '#6D28D9' }}>
+                      Pendiente
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Recojos / equipos reciclados */}
             {dev.recojos.length > 0 && (
@@ -219,7 +297,6 @@ export default function DevolucionesPage() {
                       <div style={S.recojoNombre}>{r.tipoEquipo}</div>
                       {r.codigoPon && <div style={S.recojoPon}>◈ {r.codigoPon}</div>}
                     </div>
-                    {/* Botones de revisión solo si está en revisión y la devolución está pendiente */}
                     {r.estado === 'en_revision' && dev.estado === 'pendiente' && (
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
@@ -238,7 +315,6 @@ export default function DevolucionesPage() {
                         </button>
                       </div>
                     )}
-                    {/* Estado ya procesado */}
                     {r.estado !== 'en_revision' && (
                       <span style={{
                         fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
