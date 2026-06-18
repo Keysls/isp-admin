@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, RefreshCw, Package, FileSpreadsheet, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Package, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { stockApi } from '../services/api';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
+// ── Helpers ───────────────────────────────────────────────────
+const fmtFecha = (iso) => {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+  catch { return iso; }
+};
 
 // ── Estilos ───────────────────────────────────────────────────
 const S = {
-  page:    { padding: 24, maxWidth: 900, margin: '0 auto' },
+  page:    { padding: 24 },
   header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 },
   title:   { fontSize: 20, fontWeight: 700, color: 'var(--txt)', margin: 0 },
   tabs:    { display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
@@ -20,56 +25,32 @@ const S = {
     color:       active ? '#fff' : 'var(--txt-3)',
     borderColor: active ? 'var(--accent)' : 'var(--border-2)',
   }),
-  card: {
-    background: 'var(--bg-2)', border: '1px solid var(--border)',
-    borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-  },
-  cardHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '12px 16px', borderBottom: '1px solid var(--border)',
-  },
-  tecnicoNombre: { fontWeight: 700, fontSize: 14, color: 'var(--txt)' },
-  fecha:         { fontSize: 12, color: 'var(--txt-3)' },
-  body:          { padding: '12px 16px' },
-  itemRow: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '6px 0', borderBottom: '1px solid var(--border)',
-    fontSize: 13,
-  },
-  recojoRow: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '8px 10px', borderRadius: 8, marginBottom: 6,
-    background: '#F0FDF4', border: '1px solid #BBF7D0',
-  },
-  recojoNombre: { fontSize: 13, fontWeight: 600, color: '#166534' },
-  recojoPon:    { fontSize: 11, color: '#15803D', fontFamily: 'monospace' },
-  actions: { display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' },
-  btn: (variant) => ({
+  btn: (v) => ({
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 8,
-    cursor: 'pointer', fontSize: 12, fontWeight: 600,
-    background: variant === 'green'  ? '#16a34a'
-              : variant === 'red'    ? '#dc2626'
-              : variant === 'ghost'  ? 'transparent'
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, border: 'none',
+    background: v === 'green' ? '#16a34a' : v === 'red' ? '#dc2626'
+              : v === 'blue'  ? '#2563EB' : v === 'orange' ? '#D97706'
               : 'var(--bg-3)',
-    color:  variant === 'green' || variant === 'red' ? '#fff' : 'var(--txt-2)',
-    border: variant === 'ghost' ? '1px solid var(--border-2)' : 'none',
+    color: ['green','red','blue','orange'].includes(v) ? '#fff' : 'var(--txt-2)',
+    ...(v === 'ghost' && { background: 'transparent', border: '1px solid var(--border-2)', color: 'var(--txt-2)' }),
   }),
-  badge: (estado) => ({
+  badge: (e) => ({
     display: 'inline-flex', alignItems: 'center', gap: 4,
     padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-    ...(estado === 'pendiente'  && { background: '#FEF3C7', color: '#92400E' }),
-    ...(estado === 'aprobado'   && { background: '#DCFCE7', color: '#166534' }),
-    ...(estado === 'rechazado'  && { background: '#FEE2E2', color: '#991B1B' }),
+    ...(e === 'pendiente' && { background: '#FEF3C7', color: '#92400E' }),
+    ...(e === 'aprobado'  && { background: '#DCFCE7', color: '#166534' }),
+    ...(e === 'rechazado' && { background: '#FEE2E2', color: '#991B1B' }),
   }),
   empty: { textAlign: 'center', padding: 48, color: 'var(--txt-3)', fontSize: 14 },
   modal: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    padding: 16,
   },
   modalBox: {
-    background: 'var(--bg)', borderRadius: 12, padding: 24,
-    width: '100%', maxWidth: 380, boxShadow: '0 8px 32px rgba(0,0,0,.18)',
+    background: 'var(--bg)', borderRadius: 14, padding: 24,
+    width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,.2)',
   },
   input: {
     width: '100%', boxSizing: 'border-box',
@@ -77,310 +58,458 @@ const S = {
     borderRadius: 8, padding: '9px 12px', fontSize: 14, color: 'var(--txt)',
     outline: 'none', marginTop: 8, marginBottom: 14,
   },
-  exportButtons: { display: 'flex', gap: 6 },
+  // tabla
+  table:  { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  th:     { padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700,
+            color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '.04em',
+            borderBottom: '1px solid var(--border)', background: 'var(--bg-2)', whiteSpace: 'nowrap' },
+  td:     { padding: '10px 12px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
+  wrap:   { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 24 },
 };
 
-const fmtFecha = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
-  catch { return iso; }
-};
+// ── Badge de estado de recojo ─────────────────────────────────
+function EstadoBadge({ estado }) {
+  const map = {
+    en_revision: { bg: '#FEF3C7', color: '#92400E', label: 'Pendiente' },
+    entregado:   { bg: '#DCFCE7', color: '#166534', label: 'Bueno → Stock' },
+    malogrado:   { bg: '#FEE2E2', color: '#991B1B', label: 'Malogrado' },
+    en_mano:     { bg: '#EFF6FF', color: '#1D4ED8', label: 'En mano' },
+  };
+  const m = map[estado] || { bg: 'var(--bg-3)', color: 'var(--txt-3)', label: estado };
+  return (
+    <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: m.bg, color: m.color }}>
+      {m.label}
+    </span>
+  );
+}
 
+// ── Tabla unificada de ítems (detalles + recojos) ─────────────
+function TablaItems({ dev, onRevisarRecojo, revisarPending }) {
+  // Unificar detalles de material y recojos en una sola lista de filas
+  const filasMaterial = (dev.detalles || []).map(d => ({
+    _tipo: 'material',
+    id: `mat-${d.productoId}`,
+    tipo: 'Material',
+    producto: d.nombre,
+    pon: '—',
+    sn: '—',
+    cliente: '—',
+    tecnico: `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
+    contrato: '—',
+    fecha: fmtFecha(dev.fecha),
+    estado: dev.estado === 'aprobado' ? 'entregado' : dev.estado === 'rechazado' ? 'rechazado_mat' : 'pendiente_mat',
+    cantidad: d.cantidad,
+    unidad: d.unidad || 'und',
+  }));
+
+  const filasRecojo = (dev.recojos || []).map(r => ({
+    _tipo: 'recojo',
+    _recojoId: r.id,
+    _estadoRecojo: r.estado,
+    id: `rec-${r.id}`,
+    tipo: r.tipoEquipo || 'Equipo',
+    producto: r.nombreProducto || r.tipoEquipo || '—',
+    pon: r.codigoPon || '—',
+    sn: '—',
+    cliente: r.abonado || '—',
+    tecnico: `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
+    contrato: r.contrato || '—',
+    fecha: fmtFecha(dev.fecha),
+    estado: r.estado,
+  }));
+
+  const filas = [...filasMaterial, ...filasRecojo];
+
+  if (filas.length === 0) return (
+    <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>
+      Sin ítems en esta devolución
+    </div>
+  );
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={S.table}>
+        <thead>
+          <tr>
+            {['Tipo','Producto','PON / Cód.','Cliente / Abonado','Técnico','Contrato','Fecha','Estado','Acciones'].map(h => (
+              <th key={h} style={S.th}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map(fila => (
+            <tr key={fila.id}>
+              <td style={S.td}>
+                <span style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  background: fila._tipo === 'material' ? '#EFF6FF' : '#F5F3FF',
+                  color:      fila._tipo === 'material' ? '#1D4ED8'  : '#6D28D9' }}>
+                  {fila.tipo}
+                </span>
+              </td>
+              <td style={S.td}>
+                <div style={{ fontWeight: 600, color: 'var(--txt)' }}>{fila.producto}</div>
+                {fila._tipo === 'material' && (
+                  <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fila.cantidad} {fila.unidad}</div>
+                )}
+              </td>
+              <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12, color: fila.pon !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                {fila.pon}
+              </td>
+              <td style={{ ...S.td, color: fila.cliente !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                {fila.cliente}
+              </td>
+              <td style={{ ...S.td, color: 'var(--txt-2)' }}>{fila.tecnico}</td>
+              <td style={{ ...S.td, color: fila.contrato !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                {fila.contrato}
+              </td>
+              <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fila.fecha}</td>
+              <td style={S.td}>
+                {fila._tipo === 'material' ? (
+                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                    background: dev.estado === 'aprobado' ? '#DCFCE7' : dev.estado === 'rechazado' ? '#FEE2E2' : '#FEF3C7',
+                    color:      dev.estado === 'aprobado' ? '#166534' : dev.estado === 'rechazado' ? '#991B1B' : '#92400E' }}>
+                    {dev.estado === 'aprobado' ? 'Al stock' : dev.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                  </span>
+                ) : (
+                  <EstadoBadge estado={fila._estadoRecojo} />
+                )}
+              </td>
+              <td style={S.td}>
+                {/* Acciones de revisión solo para recojos en_revision cuando la devolucion ya fue ACEPTADA */}
+                {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'aprobado' && (
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button
+                      style={{ ...S.btn('green'), padding: '4px 10px', fontSize: 11 }}
+                      onClick={() => onRevisarRecojo(fila._recojoId, 'bueno')}
+                      disabled={revisarPending}
+                      title="Bueno — suma al stock"
+                    >
+                      <CheckCircle size={11} /> Bueno
+                    </button>
+                    <button
+                      style={{ ...S.btn('red'), padding: '4px 10px', fontSize: 11 }}
+                      onClick={() => onRevisarRecojo(fila._recojoId, 'malogrado')}
+                      disabled={revisarPending}
+                      title="Malogrado — va a lista de averiados"
+                    >
+                      <XCircle size={11} /> Malo
+                    </button>
+                  </div>
+                )}
+                {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'pendiente' && (
+                  <span style={{ fontSize: 11, color: 'var(--txt-3)', fontStyle: 'italic' }}>
+                    Acepta primero
+                  </span>
+                )}
+                {fila._tipo === 'recojo' && fila._estadoRecojo !== 'en_revision' && (
+                  <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
+                )}
+                {fila._tipo === 'material' && (
+                  <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Tabla de malogrados ───────────────────────────────────────
+function TablaMalogrados() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['malogrados'],
+    queryFn:  () => stockApi.listarMalogrados().then(r => r.data),
+  });
+
+  const exportToExcel = () => {
+    if (!data?.malogrados?.length) { toast.error('No hay datos'); return; }
+    const rows = data.malogrados.map(m => ({
+      'Tipo':       m.tipoEquipo,
+      'Producto':   m.nombreProducto || '—',
+      'Código PON': m.codigoPon || '—',
+      'Sede':       m.sede || '—',
+      'Técnico':    m.tecnico || '—',
+      'Fecha':      fmtFecha(m.fecha),
+      'Revisado por': m.revisadoPor || '—',
+      'Comentario': m.comentario || '—',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 20 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Malogrados');
+    XLSX.writeFile(wb, `equipos_malogrados_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast.success('Exportado a Excel');
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: 'var(--txt-3)' }}>
+          {data?.total ?? 0} equipo{data?.total !== 1 ? 's' : ''} malogrado{data?.total !== 1 ? 's' : ''} registrado{data?.total !== 1 ? 's' : ''}
+        </div>
+        <button style={S.btn('ghost')} onClick={exportToExcel}>
+          <FileSpreadsheet size={14} /> Exportar
+        </button>
+      </div>
+
+      {isLoading ? (
+        <p style={S.empty}>Cargando...</p>
+      ) : !data?.malogrados?.length ? (
+        <div style={S.empty}>
+          <AlertTriangle size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+          <p>No hay equipos malogrados registrados.</p>
+        </div>
+      ) : (
+        <div style={S.wrap}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  {['Tipo','Producto','PON / Cód.','Sede','Técnico','Fecha','Revisado por','Comentario'].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.malogrados.map(m => (
+                  <tr key={m.id}>
+                    <td style={S.td}>
+                      <span style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#FEE2E2', color: '#991B1B' }}>
+                        {m.tipoEquipo}
+                      </span>
+                    </td>
+                    <td style={{ ...S.td, fontWeight: 600, color: 'var(--txt)' }}>{m.nombreProducto || '—'}</td>
+                    <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12 }}>{m.codigoPon || '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--txt-2)' }}>{m.sede || '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--txt-2)' }}>{m.tecnico || '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fmtFecha(m.fecha)}</td>
+                    <td style={{ ...S.td, color: 'var(--txt-3)' }}>{m.revisadoPor || '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--txt-3)', fontStyle: 'italic', fontSize: 12 }}>{m.comentario || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────
 export default function DevolucionesPage() {
   const qc = useQueryClient();
-  const [tabEstado, setTabEstado] = useState('pendiente');
-  const [modalRechazo, setModalRechazo]   = useState(null);
+  const [tabEstado,    setTabEstado]    = useState('pendiente');
+  const [tabSeccion,   setTabSeccion]   = useState('devoluciones'); // 'devoluciones' | 'malogrados'
+  const [modalRechazo, setModalRechazo] = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
 
   const { data: devoluciones = [], isLoading, refetch } = useQuery({
     queryKey: ['devoluciones', tabEstado],
     queryFn:  () => stockApi.listarDevoluciones({ estado: tabEstado }).then(r => r.data),
+    enabled:  tabSeccion === 'devoluciones',
   });
 
-  // ── Mutations ─────────────────────────────────────────────
+  const invalidar = () => qc.invalidateQueries({ queryKey: ['devoluciones'] });
+
   const mutAprobar = useMutation({
     mutationFn: (id) => stockApi.aprobarDevolucion(id),
-    onSuccess:  () => { toast.success('Devolución aprobada ✅'); qc.invalidateQueries(['devoluciones']); },
-    onError:    (e) => toast.error(e.response?.data?.error || 'Error'),
+    onSuccess:  () => { toast.success('Devolución aprobada ✅'); invalidar(); },
+    onError:    (e) => toast.error(e.response?.data?.error || 'Error al aprobar'),
   });
 
   const mutRechazar = useMutation({
     mutationFn: ({ id, motivo }) => stockApi.rechazarDevolucion(id, { motivo }),
-    onSuccess:  () => { toast.success('Devolución rechazada'); qc.invalidateQueries(['devoluciones']); setModalRechazo(null); setMotivoRechazo(''); },
-    onError:    (e) => toast.error(e.response?.data?.error || 'Error'),
+    onSuccess:  () => { toast.success('Devolución rechazada'); invalidar(); setModalRechazo(null); setMotivoRechazo(''); },
+    onError:    (e) => toast.error(e.response?.data?.error || 'Error al rechazar'),
   });
 
   const mutRevisarRecojo = useMutation({
-    mutationFn: ({ recojoId, resultado, comentario }) =>
-      stockApi.revisarRecojo(recojoId, { resultado, comentario }),
-    onSuccess: (_, vars) => {
-      toast.success(vars.resultado === 'bueno' ? '✅ Equipo al stock' : '❌ Equipo descartado');
-      qc.invalidateQueries(['devoluciones']);
+    mutationFn: ({ recojoId, resultado }) => stockApi.revisarRecojo(recojoId, { resultado }),
+    onSuccess:  (_, v) => {
+      toast.success(v.resultado === 'bueno' ? '✅ Equipo sumado al stock' : '⚠ Equipo registrado como malogrado');
+      invalidar();
+      qc.invalidateQueries({ queryKey: ['malogrados'] });
     },
     onError: (e) => toast.error(e.response?.data?.error || 'Error'),
   });
 
-  // ── Export functions ──────────────────────────────────────
-  const buildExportData = () => {
-    if (!devoluciones.length) return [];
-    return devoluciones.map(dev => ({
-      Técnico: `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
-      Fecha: fmtFecha(dev.fecha),
-      Estado: dev.estado,
-      Materiales: dev.detalles.map(d => `${d.nombre} x${d.cantidad} ${d.unidad || ''}`).join('; '),
-      'Equipos reciclados': dev.recojos
-        .filter(r => r.tipoEquipo !== 'ONU')
-        .map(r => `${r.tipoEquipo}${r.codigoPon ? ' ('+r.codigoPon+')' : ''} [${r.estado}]`).join('; '),
-      'ONUs devueltas': dev.recojos
-        .filter(r => r.tipoEquipo === 'ONU')
-        .map(r => `${r.nombreProducto || 'ONU'}${r.codigoPon ? ' ('+r.codigoPon+')' : ''}`).join('; '),
-      Comentario: dev.comentario || '',
-    }));
-  };
-
   const exportToExcel = () => {
-    const data = buildExportData();
-    if (!data.length) {
-      toast.error('No hay datos para exportar');
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(data);
+    if (!devoluciones.length) { toast.error('No hay datos para exportar'); return; }
+    const rows = devoluciones.flatMap(dev =>
+      [
+        ...(dev.detalles || []).map(d => ({
+          'Tipo':     'Material',
+          'Producto': d.nombre,
+          'Cantidad': `${d.cantidad} ${d.unidad || 'und'}`,
+          'PON':      '—',
+          'Cliente':  '—',
+          'Técnico':  `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
+          'Contrato': '—',
+          'Fecha':    fmtFecha(dev.fecha),
+          'Estado devolución': dev.estado,
+        })),
+        ...(dev.recojos || []).map(r => ({
+          'Tipo':     r.tipoEquipo,
+          'Producto': r.nombreProducto || r.tipoEquipo,
+          'Cantidad': '1',
+          'PON':      r.codigoPon || '—',
+          'Cliente':  r.abonado || '—',
+          'Técnico':  `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
+          'Contrato': r.contrato || '—',
+          'Fecha':    fmtFecha(dev.fecha),
+          'Estado devolución': dev.estado,
+        })),
+      ]
+    );
+    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Devoluciones');
     XLSX.writeFile(wb, `devoluciones_${tabEstado}_${new Date().toISOString().slice(0,10)}.xlsx`);
     toast.success('Exportado a Excel');
   };
 
-  const exportToPDF = () => {
-    const data = buildExportData();
-    if (!data.length) {
-      toast.error('No hay datos para exportar');
-      return;
-    }
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    doc.text('Reporte de Devoluciones', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Estado: ${tabEstado} | Generado: ${new Date().toLocaleString()}`, 14, 22);
+  const pendientesConAlerta = devoluciones.filter(d =>
+    (d.recojos || []).some(r => r.estado === 'en_revision')
+  ).length;
 
-    const headers = Object.keys(data[0]);
-    const rows = data.map(obj => Object.values(obj));
-
-    doc.autoTable({
-      head: [headers],
-      body: rows,
-      startY: 28,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8 },
-      columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 40 },
-        4: { cellWidth: 40 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 30 }
-      },
-      margin: { left: 10, right: 10 },
-    });
-
-    doc.save(`devoluciones_${tabEstado}_${new Date().toISOString().slice(0,10)}.pdf`);
-    toast.success('Exportado a PDF');
-  };
-
-  // ── Render ────────────────────────────────────────────────
   return (
     <div style={S.page}>
       {/* Header */}
       <div style={S.header}>
         <h1 style={S.title}>Devoluciones de técnicos</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={S.exportButtons}>
-            <button style={S.btn('ghost')} onClick={exportToExcel} title="Exportar a Excel">
-              <FileSpreadsheet size={16} /> Excel
+          {tabSeccion === 'devoluciones' && (
+            <button style={S.btn('ghost')} onClick={exportToExcel}>
+              <FileSpreadsheet size={14} /> Excel
             </button>
-          </div>
+          )}
           <button style={S.btn('ghost')} onClick={() => refetch()}>
             <RefreshCw size={13} /> Actualizar
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={S.tabs}>
-        {['pendiente', 'aprobado', 'rechazado'].map(e => (
-          <button key={e} style={S.tab(tabEstado === e)} onClick={() => setTabEstado(e)}>
-            {e === 'pendiente' ? '⏳ Pendientes' : e === 'aprobado' ? '✅ Aprobadas' : '❌ Rechazadas'}
-          </button>
-        ))}
+      {/* Sección principal: Devoluciones / Malogrados */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <button style={S.tab(tabSeccion === 'devoluciones')} onClick={() => setTabSeccion('devoluciones')}>
+          📦 Devoluciones
+        </button>
+        <button style={S.tab(tabSeccion === 'malogrados')} onClick={() => setTabSeccion('malogrados')}>
+          ⚠ Equipos malogrados
+        </button>
       </div>
 
-      {/* Lista */}
-      {isLoading ? (
-        <p style={S.empty}>Cargando...</p>
-      ) : devoluciones.length === 0 ? (
-        <div style={S.empty}>
-          <Package size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
-          <p>No hay devoluciones {tabEstado === 'pendiente' ? 'pendientes' : tabEstado === 'aprobado' ? 'aprobadas' : 'rechazadas'}.</p>
-        </div>
-      ) : devoluciones.map(dev => (
-        <div key={dev.id} style={S.card}>
-          {/* Cabecera */}
-          <div style={S.cardHeader}>
-            <div>
-              <div style={S.tecnicoNombre}>
-                {dev.tecnico.nombre} {dev.tecnico.apellido}
-              </div>
-              <div style={S.fecha}>{fmtFecha(dev.fecha)}</div>
-            </div>
-            <span style={S.badge(dev.estado)}>
-              {dev.estado === 'pendiente' ? '⏳ Pendiente' : dev.estado === 'aprobado' ? '✅ Aprobada' : '❌ Rechazada'}
-            </span>
+      {/* ── Sección Devoluciones ── */}
+      {tabSeccion === 'devoluciones' && (
+        <>
+          {/* Sub-tabs de estado */}
+          <div style={S.tabs}>
+            {['pendiente', 'aprobado', 'rechazado'].map(e => (
+              <button key={e} style={S.tab(tabEstado === e)} onClick={() => setTabEstado(e)}>
+                {e === 'pendiente' ? `⏳ Pendientes${pendientesConAlerta > 0 && tabEstado !== 'pendiente' ? ` (${pendientesConAlerta})` : ''}` : e === 'aprobado' ? '✅ Aprobadas' : '❌ Rechazadas'}
+              </button>
+            ))}
           </div>
 
-          <div style={S.body}>
-            {/* Material regular */}
-            {dev.detalles.length > 0 && (
-              <>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  <Package size={11} style={{ marginRight: 4 }} />Material
-                </div>
-                {dev.detalles.map((det, i) => (
-                  <div key={i} style={S.itemRow}>
-                    <span style={{ fontWeight: 600, color: 'var(--txt)' }}>{det.nombre}</span>
-                    <span style={{ color: 'var(--txt-3)', marginLeft: 'auto' }}>
-                      {det.cantidad} {det.unidad || 'und'}
-                    </span>
-                  </div>
-                ))}
-              </>
-            )}
+          {isLoading ? (
+            <p style={S.empty}>Cargando...</p>
+          ) : devoluciones.length === 0 ? (
+            <div style={S.empty}>
+              <Package size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+              <p>No hay devoluciones {tabEstado === 'pendiente' ? 'pendientes' : tabEstado === 'aprobado' ? 'aprobadas' : 'rechazadas'}.</p>
+            </div>
+          ) : devoluciones.map(dev => {
+            const recojosEnRevision = (dev.recojos || []).filter(r => r.estado === 'en_revision').length;
 
-            {/* ONUs devueltas */}
-            {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').length > 0 && (
-              <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#5B21B6', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  ◈ ONUs a devolver
-                </div>
-                {(dev.recojos || []).filter(r => r.tipoEquipo === 'ONU').map(o => (
-                  <div key={o.id} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 10px', borderRadius: 8, marginBottom: 6,
-                    background: '#F5F3FF', border: '1px solid #DDD6FE',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6' }}>
-                        {o.nombreProducto || 'ONU'}
-                      </div>
-                      {o.codigoPon && (
-                        <div style={{ fontSize: 11, color: '#7C3AED', fontFamily: 'monospace' }}>
-                          ◈ {o.codigoPon}
-                        </div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#EDE9FE', color: '#6D28D9' }}>
-                      Pendiente
+            return (
+              <div key={dev.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
+                {/* Cabecera */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-2)', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--txt)' }}>
+                      {dev.tecnico.nombre} {dev.tecnico.apellido}
                     </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Recojos / equipos reciclados */}
-            {dev.recojos.length > 0 && (
-              <div style={{ marginTop: dev.detalles.length > 0 ? 12 : 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  ♻ Equipos reciclados
-                </div>
-                {dev.recojos.map(r => (
-                  <div key={r.id} style={S.recojoRow}>
-                    <div>
-                      <div style={S.recojoNombre}>{r.tipoEquipo}</div>
-                      {r.codigoPon && <div style={S.recojoPon}>◈ {r.codigoPon}</div>}
-                    </div>
-                    {r.estado === 'en_revision' && dev.estado === 'pendiente' && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          style={{ ...S.btn('green'), padding: '5px 10px', fontSize: 11 }}
-                          onClick={() => mutRevisarRecojo.mutate({ recojoId: r.id, resultado: 'bueno' })}
-                          disabled={mutRevisarRecojo.isPending}
-                        >
-                          <CheckCircle size={11} /> Bueno
-                        </button>
-                        <button
-                          style={{ ...S.btn('red'), padding: '5px 10px', fontSize: 11 }}
-                          onClick={() => mutRevisarRecojo.mutate({ recojoId: r.id, resultado: 'malogrado' })}
-                          disabled={mutRevisarRecojo.isPending}
-                        >
-                          <XCircle size={11} /> Malogrado
-                        </button>
-                      </div>
-                    )}
-                    {r.estado !== 'en_revision' && (
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
-                        ...(r.estado === 'entregado' ? { background: '#DCFCE7', color: '#166534' } : { background: '#FEE2E2', color: '#991B1B' }),
-                      }}>
-                        {r.estado === 'entregado' ? '✅ Al stock' : '❌ Descartado'}
+                    <span style={{ fontSize: 12, color: 'var(--txt-3)', marginLeft: 12 }}>{fmtFecha(dev.fecha)}</span>
+                    {dev.comentario && (
+                      <span style={{ fontSize: 12, color: 'var(--txt-3)', marginLeft: 12, fontStyle: 'italic' }}>
+                        "{dev.comentario}"
                       </span>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {recojosEnRevision > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 600, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 4 }}>
+                        ⏳ {recojosEnRevision} equipo{recojosEnRevision !== 1 ? 's' : ''} sin revisar
+                      </span>
+                    )}
+                    <span style={S.badge(dev.estado)}>
+                      {dev.estado === 'pendiente' ? '⏳ Pendiente' : dev.estado === 'aprobado' ? '✅ Aprobada' : '❌ Rechazada'}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Comentario */}
-            {dev.comentario && (
-              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--txt-2)', fontStyle: 'italic' }}>
-                "{dev.comentario}"
-              </div>
-            )}
+                {/* Tabla de ítems */}
+                <TablaItems
+                  dev={dev}
+                  onRevisarRecojo={(recojoId, resultado) => mutRevisarRecojo.mutate({ recojoId, resultado })}
+                  revisarPending={mutRevisarRecojo.isPending}
+                />
 
-            {/* Acciones — solo para pendientes */}
-            {dev.estado === 'pendiente' && (
-              <div style={S.actions}>
-                <button
-                  style={S.btn('ghost')}
-                  onClick={() => { setModalRechazo({ id: dev.id }); setMotivoRechazo(''); }}
-                >
-                  <XCircle size={13} /> Rechazar
-                </button>
-                <button
-                  style={S.btn('green')}
-                  onClick={() => mutAprobar.mutate(dev.id)}
-                  disabled={mutAprobar.isPending}
-                >
-                  <CheckCircle size={13} />
-                  {mutAprobar.isPending ? 'Aprobando...' : 'Aprobar material'}
-                </button>
+                {/* Acciones globales — solo pendientes */}
+                {dev.estado === 'pendiente' && (
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8, background: 'var(--bg-2)' }}>
+                    <button
+                      style={S.btn('ghost')}
+                      onClick={() => { setModalRechazo({ id: dev.id }); setMotivoRechazo(''); }}
+                    >
+                      <XCircle size={13} /> Cancelar devolución
+                    </button>
+                    <button
+                      style={S.btn('green')}
+                      onClick={() => mutAprobar.mutate(dev.id)}
+                      disabled={mutAprobar.isPending}
+                    >
+                      <CheckCircle size={13} />
+                      {mutAprobar.isPending ? 'Aceptando...' : 'Aceptar devolución'}
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      ))}
+            );
+          })}
+        </>
+      )}
 
-      {/* Modal rechazo */}
+      {/* ── Sección Malogrados ── */}
+      {tabSeccion === 'malogrados' && <TablaMalogrados />}
+
+      {/* Modal de cancelación */}
       {modalRechazo && (
-        <div style={S.modal} onClick={(e) => e.target === e.currentTarget && setModalRechazo(null)}>
+        <div style={S.modal} onClick={e => e.target === e.currentTarget && setModalRechazo(null)}>
           <div style={S.modalBox}>
-            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: 'var(--txt)' }}>Rechazar devolución</p>
+            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: 'var(--txt)' }}>Cancelar devolución</p>
             <p style={{ fontSize: 13, color: 'var(--txt-3)', marginBottom: 12 }}>
-              El técnico verá este motivo. Los recojos volverán a su inventario.
+              Todo el material y equipos vuelven al inventario del técnico. El técnico deberá hacer un nuevo ingreso correcto.
             </p>
             <label style={{ fontSize: 12, color: 'var(--txt-2)', fontWeight: 600 }}>Motivo (opcional)</label>
             <input
               style={S.input}
-              placeholder="Ej: No coincide el inventario"
+              placeholder="Ej: No coincide el inventario físico"
               value={motivoRechazo}
               onChange={e => setMotivoRechazo(e.target.value)}
+              autoFocus
             />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button style={S.btn('ghost')} onClick={() => setModalRechazo(null)}>Cancelar</button>
+              <button style={S.btn('ghost')} onClick={() => setModalRechazo(null)}>Volver</button>
               <button
                 style={S.btn('red')}
                 onClick={() => mutRechazar.mutate({ id: modalRechazo.id, motivo: motivoRechazo })}
                 disabled={mutRechazar.isPending}
               >
-                {mutRechazar.isPending ? 'Rechazando...' : 'Confirmar rechazo'}
+                {mutRechazar.isPending ? 'Cancelando...' : 'Confirmar cancelación'}
               </button>
             </div>
           </div>
