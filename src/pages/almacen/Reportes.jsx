@@ -60,107 +60,6 @@ const CSS = `
     border-color: #1d4ed8;
     color: #fff;
   }
-
-  /* ── Export Modal ── */
-  .arep-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(0,0,0,.45);
-    backdrop-filter: blur(3px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    animation: arep-fadein .15s ease;
-  }
-  @keyframes arep-fadein { from { opacity: 0 } to { opacity: 1 } }
-
-  .arep-modal {
-    background: var(--bg-1, #fff);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 24px 64px rgba(0,0,0,.22);
-    overflow: hidden;
-    animation: arep-slideup .18s ease;
-  }
-  @keyframes arep-slideup { from { transform: translateY(12px); opacity: 0 } to { transform: none; opacity: 1 } }
-
-  .arep-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 20px 22px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .arep-modal-title { font-size: 16px; font-weight: 800; color: var(--txt); letter-spacing: -.02em; }
-  .arep-modal-sub   { font-size: 12px; color: var(--txt-3); margin-top: 3px; }
-  .arep-modal-close {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    color: var(--txt-3);
-    width: 28px; height: 28px;
-    border-radius: 7px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    transition: background .15s;
-  }
-  .arep-modal-close:hover { background: var(--bg-3); color: var(--txt); }
-
-  .arep-modal-body  { padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; }
-  .arep-modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
-
-  .arep-field-label {
-    font-size: 11px; font-weight: 700; color: var(--txt-3);
-    text-transform: uppercase; letter-spacing: .06em;
-    display: flex; align-items: center; gap: 5px;
-    margin-bottom: 7px;
-  }
-
-  .arep-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-  .arep-input {
-    width: 100%; height: 36px; padding: 0 11px;
-    background: var(--bg-2); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--txt); font-size: 13px; outline: none;
-    box-sizing: border-box;
-  }
-  .arep-input:focus { border-color: #2563EB; }
-
-  .arep-tipo-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-  .arep-tipo-chip {
-    padding: 4px 10px; border-radius: 6px;
-    border: 1.5px solid var(--border);
-    background: var(--bg-2); color: var(--txt-3);
-    font-size: 11px; font-weight: 600; cursor: pointer;
-    transition: all .12s; user-select: none;
-  }
-
-  .arep-preview-box {
-    background: var(--bg-2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 10px 14px;
-    font-size: 12px; color: var(--txt-3);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .arep-preview-count { color: #2563EB; font-weight: 800; font-size: 16px; }
-
-  .arep-btn {
-    height: 36px; padding: 0 16px; border-radius: 8px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: background .15s;
-  }
-  .arep-btn-cancel {
-    background: var(--bg-2); border: 1px solid var(--border); color: var(--txt-3);
-  }
-  .arep-btn-cancel:hover { background: var(--bg-3); color: var(--txt); }
-  .arep-btn-confirm {
-    background: #2563EB; border: 1px solid #2563EB; color: #fff;
-  }
-  .arep-btn-confirm:hover { background: #1d4ed8; }
 `;
 
 if (typeof document !== 'undefined' && !document.getElementById('arep-responsive-css')) {
@@ -176,13 +75,23 @@ function useMiSede() {
 }
 
 const TIPOS = {
-  entrada:        { label: 'Entrada',        color: '#3b6d11', bg: '#eaf3de', border: '#c0dd97' },
-  salida:         { label: 'Salida técnico', color: '#a32d2d', bg: '#fcebeb', border: '#f7c1c1' },
-  salida_directa: { label: 'Salida directa', color: '#854f0b', bg: '#faeeda', border: '#fac775' },
-  envio_salida:   { label: 'Envío salida',   color: '#534ab7', bg: '#eeedfe', border: '#afa9ec' },
-  envio_entrada:  { label: 'Recepción',      color: '#0f6e56', bg: '#e1f5ee', border: '#5dcaa5' },
-  consumo:        { label: 'Consumo',        color: '#993556', bg: '#fbeaf0', border: '#f4c0d1' },
+  entrada:           { label: 'Entrada',          color: '#3b6d11', bg: '#eaf3de', border: '#c0dd97' },
+  salida:            { label: 'Salida técnico',    color: '#a32d2d', bg: '#fcebeb', border: '#f7c1c1' },
+  salida_directa:    { label: 'Salida directa',    color: '#854f0b', bg: '#faeeda', border: '#fac775' },
+  envio_salida:      { label: 'Envío salida',      color: '#534ab7', bg: '#eeedfe', border: '#afa9ec' },
+  envio_entrada:     { label: 'Recepción',         color: '#0f6e56', bg: '#e1f5ee', border: '#5dcaa5' },
+  envio_cancelado:   { label: 'Envío cancelado',   color: '#991B1B', bg: '#FEF2F2', border: '#FECACA' },
+  consumo:           { label: 'Consumo',           color: '#993556', bg: '#fbeaf0', border: '#f4c0d1' },
 };
+
+// El backend devuelve tipo='envio_salida' o 'envio_entrada' para todos los envíos,
+// incluyendo los cancelados. Esta función normaliza el tipo final para el frontend.
+function resolverTipo(m) {
+  if ((m.tipo === 'envio_salida' || m.tipo === 'envio_entrada') && m.estado === 'CANCELADO') {
+    return 'envio_cancelado';
+  }
+  return m.tipo;
+}
 
 function TipoBadge({ tipo }) {
   const meta = TIPOS[tipo] || { label: tipo, color: '#5f5e5a', bg: '#f1efe8', border: '#d3d1c7' };
@@ -213,40 +122,45 @@ function fmtDatetime(d) {
     + ' ' + date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 }
 
-function movimientosToRows(movimientos) {
-  return movimientos.map(m => ({
-    'Fecha y hora':        fmtDatetime(m.fecha),
-    'Producto / Ítem':     m.item || '—',
-    'Tipo':                TIPOS[m.tipo]?.label || m.tipo || '—',
-    'Cantidad':            m.cantidad ?? '',
-    'Técnico':             m.tecnico_nombre || '—',
-    'Contrato':            m.contrato || '—',
-    'Abonado / Cliente':   m.abonado || '—',
-    'N° Servicio':         m.nServicio || '—',
-    'Sede origen':         m.sede_origen || '—',
-    'Sede destino':        m.sede_destino || '—',
-    'Comentario / Motivo': limpiarComentario(m.comentario) || m.motivo || '—',
-  }));
-}
-
-function exportToExcel(rows, filename) {
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 18 }, { wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 22 },
-    { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 35 },
-  ];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
-  XLSX.writeFile(wb, filename);
-}
-
 function limpiarComentario(comentario) {
   if (!comentario) return null;
   if (/^Orden:\s*[0-9a-f-]{36}$/i.test(comentario.trim())) return null;
   return comentario;
 }
 
-// ─── Export Modal ────────────────────────────────────────────────────────────
+function movimientosToRows(movimientos) {
+  return movimientos.map(m => {
+    const tipo = resolverTipo(m);
+    return {
+      'Fecha y hora':        fmtDatetime(m.fecha),
+      'Producto / Ítem':     m.item || '—',
+      'Tipo':                TIPOS[tipo]?.label || m.tipo || '—',
+      'Estado envío':        m.estado || '—',
+      'Cantidad':            m.cantidad ?? '',
+      'Técnico':             m.tecnico_nombre || '—',
+      'Contrato':            m.contrato || '—',
+      'Abonado / Cliente':   m.abonado || '—',
+      'N° Servicio':         m.nServicio || '—',
+      'Sede origen':         m.sede_origen || '—',
+      'Sede destino':        m.sede_destino || '—',
+      'Motivo cancelación':  m.motivo_cancelacion || '—',
+      'Comentario / Motivo': limpiarComentario(m.comentario) || m.motivo || '—',
+    };
+  });
+}
+
+function exportToExcel(rows, filename) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 22 },
+    { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 35 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+  XLSX.writeFile(wb, filename);
+}
+
+// ─── Export Modal ─────────────────────────────────────────────────────────────
 function ExportModal({ movimientos, sedeNombre, onClose }) {
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
@@ -270,6 +184,7 @@ function ExportModal({ movimientos, sedeNombre, onClose }) {
 
   const preview = useMemo(() => {
     return movimientos.filter(m => {
+      const tipo = resolverTipo(m);
       if (fechaDesde) {
         const d = new Date(m.fecha); d.setHours(0,0,0,0);
         if (d < new Date(fechaDesde + 'T00:00:00')) return false;
@@ -279,7 +194,7 @@ function ExportModal({ movimientos, sedeNombre, onClose }) {
         if (d > new Date(fechaHasta + 'T00:00:00')) return false;
       }
       if (tecnico && m.tecnico_nombre !== tecnico) return false;
-      if (tiposSeleccionados.size > 0 && !tiposSeleccionados.has(m.tipo)) return false;
+      if (tiposSeleccionados.size > 0 && !tiposSeleccionados.has(tipo)) return false;
       return true;
     });
   }, [movimientos, fechaDesde, fechaHasta, tecnico, tiposSeleccionados]);
@@ -377,11 +292,7 @@ function ExportModal({ movimientos, sedeNombre, onClose }) {
         {/* Acciones */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
-          <Btn
-            onClick={handleExport}
-            disabled={preview.length === 0}
-            icon={<FileDown size={15} />}
-          >
+          <Btn onClick={handleExport} disabled={preview.length === 0} icon={<FileDown size={15} />}>
             Exportar ({preview.length})
           </Btn>
         </div>
@@ -405,29 +316,32 @@ export default function AdminAlmacenReportes() {
     staleTime: 30000,
   });
 
-  const movimientos = auditoria || [];
+  // Normalizar tipo para cada movimiento (envío cancelado queda separado)
+  const movimientos = useMemo(() =>
+    (auditoria || []).map(m => ({ ...m, _tipo: resolverTipo(m) })),
+  [auditoria]);
 
   const counts = useMemo(() => {
     const c = {};
-    movimientos.forEach(m => { c[m.tipo] = (c[m.tipo] || 0) + 1; });
+    movimientos.forEach(m => { c[m._tipo] = (c[m._tipo] || 0) + 1; });
     return c;
   }, [movimientos]);
 
   const filtered = useMemo(() => {
     const search = q.toLowerCase();
     return movimientos.filter(m => {
-      const matchTipo = !activeTipo || m.tipo === activeTipo;
-      const matchQ = !search || [m.item, m.comentario, m.motivo, m.tecnico_nombre].some(v => v?.toLowerCase().includes(search));
+      const matchTipo = !activeTipo || m._tipo === activeTipo;
+      const matchQ = !search || [m.item, m.comentario, m.motivo, m.tecnico_nombre, m.motivo_cancelacion].some(v => v?.toLowerCase().includes(search));
       return matchTipo && matchQ;
     });
   }, [movimientos, q, activeTipo]);
 
   const byDay = useMemo(() => {
-    const map = {};
+    const map = new Map();
     filtered.forEach(m => {
       const day = fmtDay(m.fecha);
-      if (!map[day]) map[day] = [];
-      map[day].push(m);
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(m);
     });
     return map;
   }, [filtered]);
@@ -445,7 +359,6 @@ export default function AdminAlmacenReportes() {
 
   return (
     <div style={{ padding: 28 }} className="animate-fade">
-      {/* Export Modal */}
       {showExportModal && (
         <ExportModal
           movimientos={movimientos}
@@ -461,12 +374,10 @@ export default function AdminAlmacenReportes() {
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--txt-2)' }}>Auditoría de stock de tu sede</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {/* Botón exportar filtrado → abre modal */}
           <button className="arep-export-btn" onClick={() => setShowExportModal(true)}>
             <Download size={14} />
             Exportar filtrado
           </button>
-          {/* Botón exportar todo (sin cambios) */}
           <button className="arep-export-btn primary" onClick={handleExportTodo} title="Exportar todo el historial sin filtros">
             <FileDown size={14} />
             Exportar todo ({movimientos.length})
@@ -489,7 +400,7 @@ export default function AdminAlmacenReportes() {
       <div className="arep-filters" style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--txt-3)' }} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto, técnico, comentario..."
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto, técnico, motivo cancelación..."
             style={{ width: '100%', height: 36, paddingLeft: 32, paddingRight: 12, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--txt)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <select value={activeTipo} onChange={e => setActiveTipo(e.target.value)}
@@ -507,76 +418,101 @@ export default function AdminAlmacenReportes() {
       </p>
 
       {/* Lista por día */}
-      {Object.entries(byDay).map(([day, items]) => {
-        return (
-          <div key={day} style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--txt)' }}>{day}</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{items.length} mov.</span>
-            </div>
-            {items.map((m, i) => (
-              <Card key={i} style={{ padding: 0, marginBottom: 8, overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
-                  <TipoBadge tipo={m.tipo} />
+      {[...byDay.entries()].map(([day, items]) => (
+        <div key={day} style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--txt)' }}>{day}</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{items.length} mov.</span>
+          </div>
+          {items.map((m, i) => {
+            const tipo = m._tipo;
+            const esCancelado = tipo === 'envio_cancelado';
+            return (
+              <Card key={i} style={{ padding: 0, marginBottom: 8, overflow: 'hidden', ...(esCancelado && { opacity: 0.85 }) }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: esCancelado ? '#FEF2F2' : 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
+                  <TipoBadge tipo={tipo} />
+                  {esCancelado && (
+                    <span style={{ fontSize: 11, color: '#991B1B', fontStyle: 'italic', fontWeight: 600 }}>
+                      Stock devuelto a origen
+                    </span>
+                  )}
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--txt-3)' }}>
                     {new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
 
                 {/* Desktop */}
-              <div className="arep-row" style={{ gap: 12, padding: '11px 16px', fontSize: 13, alignItems: 'center' }}>
-                <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
-                <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
-                <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  {m.tipo === 'envio_salida' && m.sede_destino && (
-                    <span style={{ color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</span>
-                  )}
-                  {m.tipo === 'envio_entrada' && m.sede_origen && (
-                    <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
-                  )}
-                  {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
-                    <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
-                      👤 {m.tecnico_nombre}
-                    </span>
-                  )}
-                  {m.tipo === 'consumo' && m.contrato && (
-                    <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
-                      📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
-                    </span>
-                  )}
-                  {limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : '')}
-                </span>
-              </div>
+                <div className="arep-row" style={{ gap: 12, padding: '11px 16px', fontSize: 13, alignItems: 'center' }}>
+                  <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
+                  <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
+                  <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {tipo === 'envio_salida' && m.sede_destino && (
+                      <span style={{ color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</span>
+                    )}
+                    {tipo === 'envio_entrada' && m.sede_origen && (
+                      <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
+                    )}
+                    {tipo === 'envio_cancelado' && (
+                      <span style={{ color: '#991B1B', fontWeight: 600 }}>
+                        {m.sede_origen && m.sede_destino
+                          ? `${m.sede_origen} → ${m.sede_destino}`
+                          : m.sede_destino || m.sede_origen || ''}
+                      </span>
+                    )}
+                    {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                      <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
+                        👤 {m.tecnico_nombre}
+                      </span>
+                    )}
+                    {m.tipo === 'consumo' && m.contrato && (
+                      <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
+                        📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
+                      </span>
+                    )}
+                    {esCancelado && m.motivo_cancelacion && (
+                      <span style={{ color: '#991B1B', fontStyle: 'italic' }}>
+                        Motivo: {m.motivo_cancelacion}
+                      </span>
+                    )}
+                    {!esCancelado && (limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : ''))}
+                  </span>
+                </div>
 
                 {/* Móvil */}
                 <div className="arep-cards">
-                    <div className="arep-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
-                      {m.tipo === 'envio_salida' && m.sede_destino && (
-                        <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>→ {m.sede_destino}</div>
-                      )}
-                      {m.tipo === 'envio_entrada' && m.sede_origen && (
-                        <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
-                      )}
-                      {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
-                        <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
-                      )}
-                      {(limpiarComentario(m.comentario) || m.motivo) && (
-                        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
-                      )}
+                  <div className="arep-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
                     </div>
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
+                    {tipo === 'envio_salida' && m.sede_destino && (
+                      <div style={{ fontSize: 11, color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</div>
+                    )}
+                    {tipo === 'envio_entrada' && m.sede_origen && (
+                      <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
+                    )}
+                    {tipo === 'envio_cancelado' && (
+                      <div style={{ fontSize: 11, color: '#991B1B', fontWeight: 600 }}>
+                        ✕ Cancelado — {m.sede_origen} → {m.sede_destino}
+                        {m.motivo_cancelacion ? ` · ${m.motivo_cancelacion}` : ''}
+                      </div>
+                    )}
+                    {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                      <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
+                    )}
+                    {!esCancelado && (limpiarComentario(m.comentario) || m.motivo) && (
+                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
+                    )}
+                  </div>
                 </div>
               </Card>
-            ))}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
 
       {!isLoading && filtered.length === 0 && (
         <Card style={{ padding: 40, textAlign: 'center' }}>

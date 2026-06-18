@@ -290,6 +290,8 @@ export default function AdminAlmacenInventario() {
   const tecnicosQ       = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
   const enviosPendientesQ = useQuery({ queryKey: ['envios-pendientes', sedeId], enabled: Boolean(sedeId), queryFn: () => stockApi.listarEnviosPendientes({ sedeId }).then(r => r.data) });
+  // BUG 3 FIX: historial de envíos enviados DESDE esta sede (incluye CANCELADOS)
+  const enviosOrigenQ   = useQuery({ queryKey: ['envios-origen', sedeId], enabled: Boolean(sedeId), queryFn: () => stockApi.listarEnviosOrigen({ sedeId }).then(r => r.data) });
   const sedesQ          = useQuery({ queryKey: ['sedes-para-envio'], queryFn: () => sedesApi.listarParaEnvio().then(r => r.data) });
 
   const refresh = () => {

@@ -191,6 +191,8 @@ export const stockApi = {
   aprobarDevolucion:  (id)           => api.post(`/stock/devoluciones/${id}/aprobar`),
   rechazarDevolucion: (id, data)     => api.post(`/stock/devoluciones/${id}/rechazar`, data),
   revisarRecojo:      (id, data)     => api.post(`/stock/recojos/${id}/revisar`, data),
+  // BUG 7 FIX: auditoria de equipos malogrados
+  listarMalogrados:   (params)       => api.get('/stock/malogrados', { params }),
 };
  
  
