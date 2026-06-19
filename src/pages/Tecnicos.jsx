@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Pencil, Lock, PowerOff, Power, Phone, Mail, MapPin, Car, CreditCard, Package, Wifi, FileDown } from 'lucide-react';
+import { UserPlus, Pencil, Lock, PowerOff, Power, Phone, Mail, MapPin, Car, CreditCard, Package, Wifi, FileDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tecnicosApi, stockApi } from '../services/api';
 import { Card, Btn, Modal, Input, Avatar, Spinner, Empty } from '../components/ui';
@@ -78,14 +78,15 @@ function SectionLabel({ children }) {
     </div>
   );
 }
-// ── Modal Inventario ───────────────────────────────────────────────
-function ModalInventario({ open, onClose, tecnico }) {
+
+// ── Panel Inventario (desglosable, ya no es overlay) ───────────────
+function PanelInventario({ tecnico, onClose }) {
   const [tab, setTab] = useState('stock');
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventario-tecnico', tecnico?.id],
     queryFn:  () => stockApi.inventarioTecnico(tecnico.id).then(r => r.data),
-    enabled:  open && !!tecnico?.id,
+    enabled:  !!tecnico?.id,
   });
 
   if (!tecnico) return null;
@@ -93,7 +94,7 @@ function ModalInventario({ open, onClose, tecnico }) {
   const nombre = `${tecnico.usuario?.nombre} ${tecnico.usuario?.apellido}`.trim();
 
   // ── Stock actual: asignado − consumido ────────────────────
-    const stockActual = (data?.asignaciones || []).map(a => {
+  const stockActual = (data?.asignaciones || []).map(a => {
     const esOnu = (a.categoria || '').toLowerCase().includes('onu') ||
                   (a.categoria || '').toLowerCase().includes('ont') ||
                   (a.nombre    || '').toLowerCase().includes('onu') ||
@@ -174,7 +175,23 @@ function ModalInventario({ open, onClose, tecnico }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Inventario — ${nombre}`} width={580}>
+    <div
+      className="animate-fade"
+      style={{ padding: '18px 20px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}
+    >
+
+      {/* Barra superior: título + cerrar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--txt)' }}>
+          Inventario — {nombre}
+        </div>
+        <button
+          onClick={onClose}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-1, #fff)', color: 'var(--txt-3)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+        >
+          <ChevronUp size={13} /> Cerrar
+        </button>
+      </div>
 
       {/* Header técnico */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'var(--bg-3)', borderRadius: 10, marginBottom: 16 }}>
@@ -436,7 +453,7 @@ function ModalInventario({ open, onClose, tecnico }) {
 
         </div>
       )}
-    </Modal>
+    </div>
   );
 }
 
@@ -662,85 +679,99 @@ export default function TecnicosPage() {
         <Empty icon="👷" title="Sin técnicos registrados" subtitle="Agrega tu primer técnico instalador"/>
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
-          {(tecnicos || []).map((t, idx) => (
-            <div key={t.id} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '14px 18px',
-              borderBottom: idx < tecnicos.length - 1 ? '1px solid var(--border)' : 'none',
-              transition: 'background .15s',
-            }}
-              className="tec-row"
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              {/* Avatar */}
-              <div style={{ opacity: t.activo ? 1 : 0.4, display: 'flex' }}>
-                <Avatar nombre={t.usuario.nombre} apellido={t.usuario.apellido} size={42} />
-              </div>
+          {(tecnicos || []).map((t, idx) => {
+            const inventarioAbierto = tecnicoInventario?.id === t.id;
+            return (
+              <React.Fragment key={t.id}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 18px',
+                  borderBottom: (idx < tecnicos.length - 1 && !inventarioAbierto) ? '1px solid var(--border)' : 'none',
+                  transition: 'background .15s',
+                }}
+                  className="tec-row"
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  {/* Avatar */}
+                  <div style={{ opacity: t.activo ? 1 : 0.4, display: 'flex' }}>
+                    <Avatar nombre={t.usuario.nombre} apellido={t.usuario.apellido} size={42} />
+                  </div>
 
-              {/* Info principal */}
-                <div style={{ flex: 1, minWidth: 0, opacity: t.activo ? 1 : 0.4 }}>                
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--txt)' }}>
-                    {t.usuario.nombre} {t.usuario.apellido}
-                  </span>
-                  <Badge color={t.activo ? 'green' : 'gray'}>{t.activo ? '● Activo' : '○ Inactivo'}</Badge>
-                  {t._count?.ordenes > 0 && (
-                    <Badge color="yellow">{t._count.ordenes} orden{t._count.ordenes !== 1 ? 'es' : ''}</Badge>
-                  )}
-                </div>
-                <div className="tec-info-meta" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                  {[
-                    { icon: <Mail size={11}/>,       val: t.usuario.email,              hide: false },
-                    { icon: <Phone size={11}/>,      val: t.usuario.telefono || '—',    hide: true  },
-                    { icon: <CreditCard size={11}/>, val: `DNI: ${t.dni}`,              hide: false },
-                    { icon: <MapPin size={11}/>,     val: t.zonaAsignada || 'Sin zona', hide: true  },
-                    { icon: <Car size={11}/>,        val: t.vehiculo || 'Sin vehículo', hide: true  },
-                  ].map((item, i) => (
-                    <div key={i}
-                      className={item.hide ? 'tec-meta-hide' : ''}
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--txt-3)' }}>
-                      {item.icon} {item.val}
+                  {/* Info principal */}
+                    <div style={{ flex: 1, minWidth: 0, opacity: t.activo ? 1 : 0.4 }}>                
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--txt)' }}>
+                        {t.usuario.nombre} {t.usuario.apellido}
+                      </span>
+                      <Badge color={t.activo ? 'green' : 'gray'}>{t.activo ? '● Activo' : '○ Inactivo'}</Badge>
+                      {t._count?.ordenes > 0 && (
+                        <Badge color="yellow">{t._count.ordenes} orden{t._count.ordenes !== 1 ? 'es' : ''}</Badge>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="tec-info-meta" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      {[
+                        { icon: <Mail size={11}/>,       val: t.usuario.email,              hide: false },
+                        { icon: <Phone size={11}/>,      val: t.usuario.telefono || '—',    hide: true  },
+                        { icon: <CreditCard size={11}/>, val: `DNI: ${t.dni}`,              hide: false },
+                        { icon: <MapPin size={11}/>,     val: t.zonaAsignada || 'Sin zona', hide: true  },
+                        { icon: <Car size={11}/>,        val: t.vehiculo || 'Sin vehículo', hide: true  },
+                      ].map((item, i) => (
+                        <div key={i}
+                          className={item.hide ? 'tec-meta-hide' : ''}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--txt-3)' }}>
+                          {item.icon} {item.val}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Acciones */}
-              <div className="tec-acciones" style={{ display: 'flex', gap: 5, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {/* Botones */}
-                  <Btn variant="ghost" size="sm" icon={<Package size={11}/>}  onClick={() => setTecnicoInventario(t)}>
-                    <span className="tec-btn-label">Inventario</span>
-                  </Btn>
-                  <Btn variant="ghost" size="sm" icon={<Pencil size={11}/>}   onClick={() => setTecnicoEditar(t)}>
-                    <span className="tec-btn-label">Editar</span>
-                  </Btn>
-                  <Btn variant="ghost" size="sm" icon={<Lock size={11}/>}     onClick={() => setTecnicoPass(t)}>
-                    <span className="tec-btn-label">Contraseña</span>
-                  </Btn>
-                  <Btn
-                    variant={t.activo ? 'danger' : 'ghost'}
-                    size="sm"
-                    icon={t.activo ? <PowerOff size={11}/> : <Power size={11} color="#22c55e"/>}
-                    style={!t.activo ? {
-                      color: '#22c55e',
-                      borderColor: 'rgba(34,197,94,0.4)',
-                      background: 'rgba(34,197,94,0.08)',
-                    } : {}}                    
-                    onClick={() => toggleActivoMut.mutate({ id: t.id, activo: !t.activo })}
-                    loading={toggleActivoMut.isPending}>
-                    <span className="tec-btn-label">{t.activo ? 'Deshabilitar' : 'Habilitar'}</span>
-                  </Btn>
-              </div>
-            </div>
-          ))}
+                  {/* Acciones */}
+                  <div className="tec-acciones" style={{ display: 'flex', gap: 5, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {/* Botones */}
+                      <Btn
+                        variant={inventarioAbierto ? 'primary' : 'ghost'}
+                        size="sm"
+                        icon={<Package size={11}/>}
+                        onClick={() => setTecnicoInventario(prev => prev?.id === t.id ? null : t)}
+                      >
+                        <span className="tec-btn-label">Inventario</span>
+                      </Btn>
+                      <Btn variant="ghost" size="sm" icon={<Pencil size={11}/>}   onClick={() => setTecnicoEditar(t)}>
+                        <span className="tec-btn-label">Editar</span>
+                      </Btn>
+                      <Btn variant="ghost" size="sm" icon={<Lock size={11}/>}     onClick={() => setTecnicoPass(t)}>
+                        <span className="tec-btn-label">Contraseña</span>
+                      </Btn>
+                      <Btn
+                        variant={t.activo ? 'danger' : 'ghost'}
+                        size="sm"
+                        icon={t.activo ? <PowerOff size={11}/> : <Power size={11} color="#22c55e"/>}
+                        style={!t.activo ? {
+                          color: '#22c55e',
+                          borderColor: 'rgba(34,197,94,0.4)',
+                          background: 'rgba(34,197,94,0.08)',
+                        } : {}}                    
+                        onClick={() => toggleActivoMut.mutate({ id: t.id, activo: !t.activo })}
+                        loading={toggleActivoMut.isPending}>
+                        <span className="tec-btn-label">{t.activo ? 'Deshabilitar' : 'Habilitar'}</span>
+                      </Btn>
+                  </div>
+                </div>
+
+                {/* Inventario desglosado inline */}
+                {inventarioAbierto && (
+                  <PanelInventario tecnico={t} onClose={() => setTecnicoInventario(null)} />
+                )}
+              </React.Fragment>
+            );
+          })}
         </Card>
       )}
 
       <ModalCrear       open={showCrear}             onClose={() => setShowCrear(false)} />
       <ModalEditar      open={!!tecnicoEditar}        onClose={() => setTecnicoEditar(null)}    tecnico={tecnicoEditar} />
       <ModalPassword    open={!!tecnicoPass}          onClose={() => setTecnicoPass(null)}       tecnico={tecnicoPass} />
-      <ModalInventario  open={!!tecnicoInventario}    onClose={() => setTecnicoInventario(null)} tecnico={tecnicoInventario} />
     </div>
   );
 }
