@@ -126,7 +126,7 @@ export default function AdminAlmacenDashboard() {
 
   const dataPie = [
     { name: 'Bajo mínimo', value: (data.stockBajo || []).length },
-    { name: 'En stock',    value: Math.max(0, (data.misTecnicos || []).length * 3 - (data.stockBajo || []).length) },
+    { name: 'En stock',    value: Math.max(0, (data.totalProductos || 0) - (data.stockBajo || []).length) },
   ].filter(d => d.value > 0);
 
   const ultimasSalidas = (data.ultimasSalidas || []).slice(0, 5);
