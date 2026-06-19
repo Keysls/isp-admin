@@ -343,7 +343,22 @@ export default function AdminAlmacenReportes() {
       if (!map.has(day)) map.set(day, []);
       map.get(day).push(m);
     });
-    return map;
+
+    // Sub-agrupar dentro de cada día: mismos movimientos disparados por una sola
+    // acción (ej. asignación múltiple) comparten tipo + técnico/sede + el mismo
+    // segundo exacto. Se combinan en un solo grupo visual.
+    const grouped = new Map();
+    for (const [day, items] of map.entries()) {
+      const buckets = new Map();
+      for (const m of items) {
+        const tsKey = m.fecha ? new Date(m.fecha).toISOString().slice(0, 19) : 'sin-fecha';
+        const key = [m._tipo, m.tecnico_nombre || '', m.sede_destino || m.sede_origen || '', tsKey].join('|');
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(m);
+      }
+      grouped.set(day, [...buckets.values()]);
+    }
+    return grouped;
   }, [filtered]);
 
   function handleExportTodo() {
@@ -418,20 +433,29 @@ export default function AdminAlmacenReportes() {
       </p>
 
       {/* Lista por día */}
-      {[...byDay.entries()].map(([day, items]) => (
+      {[...byDay.entries()].map(([day, groups]) => {
+        const totalMov = groups.reduce((s, g) => s + g.length, 0);
+        return (
         <div key={day} style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--txt)' }}>{day}</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{items.length} mov.</span>
+            <span style={{ fontSize: 12, color: 'var(--txt-3)' }}>{totalMov} mov.</span>
           </div>
-          {items.map((m, i) => {
+          {groups.map((grupo, gi) => {
+            const m = grupo[0];
             const tipo = m._tipo;
             const esCancelado = tipo === 'envio_cancelado';
+            const esGrupo = grupo.length > 1;
             return (
-              <Card key={i} style={{ padding: 0, marginBottom: 8, overflow: 'hidden', ...(esCancelado && { opacity: 0.85 }) }}>
+              <Card key={gi} style={{ padding: 0, marginBottom: 8, overflow: 'hidden', ...(esCancelado && { opacity: 0.85 }) }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: esCancelado ? '#FEF2F2' : 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
                   <TipoBadge tipo={tipo} />
+                  {esGrupo && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
+                      ×{grupo.length} productos
+                    </span>
+                  )}
                   {esCancelado && (
                     <span style={{ fontSize: 11, color: '#991B1B', fontStyle: 'italic', fontWeight: 600 }}>
                       Stock devuelto a origen
@@ -442,77 +466,99 @@ export default function AdminAlmacenReportes() {
                   </span>
                 </div>
 
-                {/* Desktop */}
-                <div className="arep-row" style={{ gap: 12, padding: '11px 16px', fontSize: 13, alignItems: 'center' }}>
-                  <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
-                  <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
-                  <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {/* Cabecera común del grupo (técnico/sede/contrato) — una sola vez */}
+                {esGrupo && (
+                  <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--txt-3)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     {tipo === 'envio_salida' && m.sede_destino && (
                       <span style={{ color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</span>
                     )}
                     {tipo === 'envio_entrada' && m.sede_origen && (
                       <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
                     )}
-                    {tipo === 'envio_cancelado' && (
-                      <span style={{ color: '#991B1B', fontWeight: 600 }}>
-                        {m.sede_origen && m.sede_destino
-                          ? `${m.sede_origen} → ${m.sede_destino}`
-                          : m.sede_destino || m.sede_origen || ''}
-                      </span>
-                    )}
                     {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
                       <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
                         👤 {m.tecnico_nombre}
                       </span>
                     )}
-                    {m.tipo === 'consumo' && m.contrato && (
-                      <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
-                        📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
-                      </span>
-                    )}
-                    {esCancelado && m.motivo_cancelacion && (
-                      <span style={{ color: '#991B1B', fontStyle: 'italic' }}>
-                        Motivo: {m.motivo_cancelacion}
-                      </span>
-                    )}
-                    {!esCancelado && (limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : ''))}
-                  </span>
-                </div>
-
-                {/* Móvil */}
-                <div className="arep-cards">
-                  <div className="arep-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
-                    {tipo === 'envio_salida' && m.sede_destino && (
-                      <div style={{ fontSize: 11, color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</div>
-                    )}
-                    {tipo === 'envio_entrada' && m.sede_origen && (
-                      <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
-                    )}
-                    {tipo === 'envio_cancelado' && (
-                      <div style={{ fontSize: 11, color: '#991B1B', fontWeight: 600 }}>
-                        ✕ Cancelado — {m.sede_origen} → {m.sede_destino}
-                        {m.motivo_cancelacion ? ` · ${m.motivo_cancelacion}` : ''}
-                      </div>
-                    )}
-                    {(m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
-                      <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
-                    )}
-                    {!esCancelado && (limpiarComentario(m.comentario) || m.motivo) && (
-                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
-                    )}
                   </div>
+                )}
+
+                {/* Desktop: una fila por ítem del grupo, sin repetir la info común si es grupo */}
+                {grupo.map((m, i) => (
+                  <div key={i} className="arep-row" style={{ gap: 12, padding: '11px 16px', fontSize: 13, alignItems: 'center', borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                    <span style={{ color: 'var(--txt)', fontWeight: 600 }}>{m.item}</span>
+                    <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--txt)' }}>{m.cantidad}</span>
+                    <span style={{ color: 'var(--txt-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {!esGrupo && tipo === 'envio_salida' && m.sede_destino && (
+                        <span style={{ color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</span>
+                      )}
+                      {!esGrupo && tipo === 'envio_entrada' && m.sede_origen && (
+                        <span style={{ color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</span>
+                      )}
+                      {tipo === 'envio_cancelado' && (
+                        <span style={{ color: '#991B1B', fontWeight: 600 }}>
+                          {m.sede_origen && m.sede_destino
+                            ? `${m.sede_origen} → ${m.sede_destino}`
+                            : m.sede_destino || m.sede_origen || ''}
+                        </span>
+                      )}
+                      {!esGrupo && (m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                        <span style={{ color: '#2563EB', fontWeight: 600, background: '#EFF6FF', padding: '1px 7px', borderRadius: 5 }}>
+                          👤 {m.tecnico_nombre}
+                        </span>
+                      )}
+                      {m.tipo === 'consumo' && m.contrato && (
+                        <span style={{ color: '#6d28d9', fontWeight: 600, background: '#EDE9FE', padding: '1px 7px', borderRadius: 5 }}>
+                          📋 {m.contrato}{m.abonado ? ` · ${m.abonado}` : ''}
+                        </span>
+                      )}
+                      {esCancelado && m.motivo_cancelacion && (
+                        <span style={{ color: '#991B1B', fontStyle: 'italic' }}>
+                          Motivo: {m.motivo_cancelacion}
+                        </span>
+                      )}
+                      {!esCancelado && (limpiarComentario(m.comentario) || m.motivo || (!m.sede_destino && !m.sede_origen && !m.tecnico_nombre ? '—' : ''))}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Móvil: cards por ítem */}
+                <div className="arep-cards">
+                  {grupo.map((m, i) => (
+                    <div key={i} className="arep-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.item}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: 'var(--txt)', flexShrink: 0 }}>×{m.cantidad}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{new Date(m.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</div>
+                      {!esGrupo && tipo === 'envio_salida' && m.sede_destino && (
+                        <div style={{ fontSize: 11, color: '#534ab7', fontWeight: 600 }}>→ {m.sede_destino}</div>
+                      )}
+                      {!esGrupo && tipo === 'envio_entrada' && m.sede_origen && (
+                        <div style={{ fontSize: 11, color: '#0f6e56', fontWeight: 600 }}>← {m.sede_origen}</div>
+                      )}
+                      {tipo === 'envio_cancelado' && (
+                        <div style={{ fontSize: 11, color: '#991B1B', fontWeight: 600 }}>
+                          ✕ Cancelado — {m.sede_origen} → {m.sede_destino}
+                          {m.motivo_cancelacion ? ` · ${m.motivo_cancelacion}` : ''}
+                        </div>
+                      )}
+                      {!esGrupo && (m.tipo === 'salida' || m.tipo === 'consumo') && m.tecnico_nombre && (
+                        <div style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>👤 {m.tecnico_nombre}</div>
+                      )}
+                      {!esCancelado && (limpiarComentario(m.comentario) || m.motivo) && (
+                        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{limpiarComentario(m.comentario) || m.motivo}</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </Card>
             );
           })}
         </div>
-      ))}
+        );
+      })}
 
       {!isLoading && filtered.length === 0 && (
         <Card style={{ padding: 40, textAlign: 'center' }}>

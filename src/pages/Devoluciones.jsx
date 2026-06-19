@@ -218,9 +218,19 @@ function TablaItems({ dev, onRevisarRecojo, revisarPending }) {
 
 // ── Tabla de malogrados ───────────────────────────────────────
 function TablaMalogrados() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['malogrados'],
     queryFn:  () => stockApi.listarMalogrados().then(r => r.data),
+  });
+
+  const mutReingresar = useMutation({
+    mutationFn: (id) => stockApi.reingresarOnuMalograda(id),
+    onSuccess:  () => {
+      toast.success('✅ Equipo reingresado al stock');
+      qc.invalidateQueries({ queryKey: ['malogrados'] });
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al reingresar'),
   });
 
   const exportToExcel = () => {
@@ -267,7 +277,7 @@ function TablaMalogrados() {
             <table style={S.table}>
               <thead>
                 <tr>
-                  {['Tipo','Producto','PON / Cód.','Sede','Técnico','Fecha','Revisado por','Comentario'].map(h => (
+                  {['Tipo','Producto','PON / Cód.','Sede','Técnico','Fecha','Revisado por','Comentario','Acciones'].map(h => (
                     <th key={h} style={S.th}>{h}</th>
                   ))}
                 </tr>
@@ -287,6 +297,16 @@ function TablaMalogrados() {
                     <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fmtFecha(m.fecha)}</td>
                     <td style={{ ...S.td, color: 'var(--txt-3)' }}>{m.revisadoPor || '—'}</td>
                     <td style={{ ...S.td, color: 'var(--txt-3)', fontStyle: 'italic', fontSize: 12 }}>{m.comentario || '—'}</td>
+                    <td style={S.td}>
+                      <button
+                        style={{ ...S.btn('blue'), padding: '5px 10px', fontSize: 11 }}
+                        onClick={() => mutReingresar.mutate(m.id)}
+                        disabled={mutReingresar.isPending}
+                        title="Reingresar al stock disponible"
+                      >
+                        <CheckCircle size={11} /> Reingresar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

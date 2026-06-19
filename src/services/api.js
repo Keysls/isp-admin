@@ -193,6 +193,7 @@ export const stockApi = {
   revisarRecojo:      (id, data)     => api.post(`/stock/recojos/${id}/revisar`, data),
   // BUG 7 FIX: auditoria de equipos malogrados
   listarMalogrados:   (params)       => api.get('/stock/malogrados', { params }),
+  reingresarOnuMalograda: (id, data) => api.post(`/stock/malogrados/${id}/reingresar`, data),
 };
  
  
