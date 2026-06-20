@@ -100,13 +100,14 @@ function PanelInventario({ tecnico, onClose }) {
                   (a.nombre    || '').toLowerCase().includes('onu') ||
                   (a.nombre    || '').toLowerCase().includes('ont');
 
-    let gastado, disponible;
+    let gastado, disponible, codigosPon = [];
 
     if (esOnu) {
       // Para ONUs: disponible = cantidad de ONUs con codigoPon asignadas a este técnico
       const onusDesteProducto = (data?.onus || []).filter(o => o.producto === a.nombre);
       disponible = onusDesteProducto.length;
       gastado    = Math.max(0, Number(a.cantidad) - disponible);
+      codigosPon = onusDesteProducto.map(o => o.codigoPon).filter(Boolean);
     } else {
       gastado    = (data?.consumos || [])
         .filter(c => c.nombre === a.nombre)
@@ -115,8 +116,8 @@ function PanelInventario({ tecnico, onClose }) {
     }
 
     const pct = a.cantidad > 0 ? Math.round((disponible / a.cantidad) * 100) : 0;
-    return { ...a, gastado, disponible, pct };
-  });
+    return { ...a, gastado, disponible, pct, codigosPon };
+  }).filter(a => a.disponible > 0);
 
   const tabs = [
     { id: 'stock',     label: 'Stock actual', count: stockActual.length },
@@ -146,24 +147,26 @@ function PanelInventario({ tecnico, onClose }) {
     // Hoja 2: Gastos
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       (data?.consumos || []).map(c => ({
-        'Producto':  c.nombre,
-        'Cantidad':  c.cantidad,
-        'Contrato':  c.contrato  || '—',
-        'Abonado':   c.abonado   || '—',
-        'PON-SN':    c.codigoPon || '—',
-        'Fecha':     c.fecha ? new Date(c.fecha).toLocaleDateString('es-PE') : '—',
+        'Producto':    c.nombre,
+        'Cantidad':    c.cantidad,
+        'N° Servicio': c.nServicio || '—',
+        'Contrato':    c.contrato  || '—',
+        'Abonado':     c.abonado   || '—',
+        'PON-SN':      c.codigoPon || '—',
+        'Fecha':       c.fecha ? new Date(c.fecha).toLocaleDateString('es-PE') : '—',
       }))
     ), 'Gastos');
 
     // Hoja 3: Recojos
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       (data?.recojos || []).map(r => ({
-        'Producto':   r.nombreProducto || r.tipoEquipo || '—',
-        'PON-SN':     r.codigoPon || '—',
-        'Contrato':   r.contrato  || '—',
-        'Abonado':    r.abonado   || '—',
-        'Estado':     r.estado    || '—',
-        'Fecha':      r.fecha ? new Date(r.fecha).toLocaleDateString('es-PE') : '—',
+        'Producto':    r.nombreProducto || r.tipoEquipo || '—',
+        'PON-SN':      r.codigoPon || '—',
+        'N° Servicio': r.nServicio || '—',
+        'Contrato':    r.contrato  || '—',
+        'Abonado':     r.abonado   || '—',
+        'Estado':      r.estado    || '—',
+        'Fecha':       r.fecha ? new Date(r.fecha).toLocaleDateString('es-PE') : '—',
       }))
     ), 'Recojos');
 
@@ -274,6 +277,11 @@ function PanelInventario({ tecnico, onClose }) {
                           {a.codigo && <span style={{ fontFamily: 'var(--font-mono)' }}>{a.codigo}</span>}
                           {a.categoria && <span style={{ marginLeft: a.codigo ? 6 : 0 }}>· {a.categoria}</span>}
                         </div>
+                        {a.codigosPon?.length > 0 && (
+                          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#7c3aed', fontWeight: 600, marginTop: 2 }}>
+                            ◈ {a.codigosPon.join(', ')}
+                          </div>
+                        )}
                         {/* Barra de progreso */}
                         <div style={{ marginTop: 6, height: 4, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${a.pct}%`, background: color, borderRadius: 99, transition: 'width .3s' }} />
