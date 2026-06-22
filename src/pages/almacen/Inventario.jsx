@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Check, FileDown, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';
 import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
@@ -125,25 +125,55 @@ function MetrosCell({ p }) {
   );
 }
 
-function ProductSearch({ label, search, setSearch, products, selected, onAdd }) {
+function ProductSearch({ label, products, selected, onAdd }) {
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const selectedIds = selected.map(i => String(i.producto_id));
-  const results = search
-    ? products.filter(p => !selectedIds.includes(String(p.producto_id)) && `${p.producto} ${p.codigo || ''} ${p.categoria || ''}`.toLowerCase().includes(search.toLowerCase())).slice(0, 8)
-    : [];
+
+  const results = useMemo(() => {
+    const disponibles = products.filter(p => !selectedIds.includes(String(p.producto_id)));
+    if (!search.trim()) return disponibles.slice(0, 8);
+    const q = search.toLowerCase();
+    return disponibles
+      .filter(p => `${p.producto} ${p.codigo || ''} ${p.categoria || ''}`.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [products, selectedIds, search]);
+
+  const handleAdd = (p) => {
+    onAdd(p);
+    setSearch('');
+    setIsOpen(false);
+  };
+
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
       <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 11px', height: 38, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-2)' }}>
         <Search size={16} color="var(--txt-3)" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre o código..." style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }} />
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+          placeholder="Nombre o código..."
+          style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }}
+        />
       </div>
-      {results.length > 0 && (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 8, marginTop: 6, maxHeight: 220, overflowY: 'auto', background: 'var(--bg-card)' }}>
+      {isOpen && results.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+          border: '1px solid var(--border)', borderRadius: 8, marginTop: 6,
+          maxHeight: 220, overflowY: 'auto', background: 'var(--bg-card)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}>
           {results.map(p => (
-            <button key={p.producto_id} type="button" onClick={() => { onAdd(p); setSearch(''); }}
+            <button
+              key={p.producto_id} type="button"
+              onMouseDown={() => handleAdd(p)}
               style={{ width: '100%', border: 0, background: 'transparent', padding: '9px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', textAlign: 'left', borderBottom: '1px solid var(--border)', transition: 'background .12s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
               <span><strong>{p.producto}</strong>{p.codigo && <span style={{ marginLeft: 8, color: 'var(--txt-3)', fontSize: 12 }}>{p.codigo}</span>}</span>
               {p.cantidad != null && <span style={{ color: 'var(--txt-3)', fontSize: 12 }}>disp: <strong>{p.cantidad}</strong></span>}
             </button>
@@ -153,6 +183,8 @@ function ProductSearch({ label, search, setSearch, products, selected, onAdd }) 
     </div>
   );
 }
+
+
 
 function ItemsList({ stock, items, setItems, showDisponible = true, sedeId, allowOnu = true }) {
   const update = (idx, key, value) => setItems(items.map((it, i) => i === idx ? { ...it, [key]: value } : it));
@@ -279,13 +311,14 @@ export default function AdminAlmacenInventario() {
   const [asignacion, setAsignacion] = useState({ tecnico_id: '', comentario: '', items: [], onu_ids: [] });
   const [directa,    setDirecta]    = useState({ comentario: '', items: [], onu_ids: [], fecha: hoy });
   const [onuForm,    setOnuForm]    = useState({ producto_id: '', codigos_pon: [''] });
-  const [entradaSearch,    setEntradaSearch]    = useState('');
-  const [asignacionSearch, setAsignacionSearch] = useState('');
-  const [directaSearch,    setDirectaSearch]    = useState('');
   const [envio,      setEnvio]      = useState({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy });
-  const [envioSearch, setEnvioSearch] = useState('');
 
-  const stockQ          = useQuery({ queryKey: ['admin-stock-sede', sedeId, qDebounced], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data) });
+  const stockQ = useQuery({
+    queryKey: ['admin-stock-sede', sedeId, qDebounced],
+    enabled: Boolean(sedeId),
+    queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data),
+    placeholderData: keepPreviousData,
+  });
   const productosQ      = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
   const tecnicosQ       = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
@@ -315,7 +348,7 @@ export default function AdminAlmacenInventario() {
         items: entradaItemsValidos,
       });
     },
-    onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal(null); refresh(); },
+    onSuccess: () => { toast.success('Entrada registrada'); setEntrada({ comentario: '', items: [], fecha: hoy }); setModal(null); refresh(); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la entrada'),
   });
 
@@ -398,7 +431,7 @@ export default function AdminAlmacenInventario() {
         onu_ids: onuIds,
       });
     },
-    onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy }); setEnvioSearch(''); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
+    onSuccess: () => { toast.success('Envío registrado'); setEnvio({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy }); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
 
@@ -428,11 +461,6 @@ export default function AdminAlmacenInventario() {
     });
   };
 
-  if (stockQ.isLoading) return (
-    <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-      <Spinner size={28} />
-    </div>
-  );
 
   return (
     <div style={{ padding: 28 }} className="animate-fade">
@@ -452,10 +480,10 @@ export default function AdminAlmacenInventario() {
           <Search size={14} color="var(--txt-3)" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar ítem..." style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }} />
         </div>
-        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={15} />}>
+        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [], fecha: hoy }); setModal('entrada'); }} icon={<Plus size={15} />}>
           Registrar entrada
         </Btn>
-        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={15} />}>
+        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setModal('directa'); }} icon={<TrendingDown size={15} />}>
           Salida directa
         </Btn>
         <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={15} />}>
@@ -466,7 +494,7 @@ export default function AdminAlmacenInventario() {
             Enviar a sede
           </Btn>
         )}
-        <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }} icon={<Send size={15} />}
+        <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setModal('asignar'); }} icon={<Send size={15} />}
           style={{ background: '#185FA5', color: '#fff', border: 'none' }}>
           Asignar a técnico
         </Btn>
@@ -514,7 +542,13 @@ export default function AdminAlmacenInventario() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {stockQ.isLoading ? (
+                <tr>
+                  <td colSpan={hayMedibles ? 7 : 6} style={{ padding: 32, textAlign: 'center' }}>
+                    <Spinner size={20} />
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={hayMedibles ? 7 : 6} style={{ padding: 32, textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>
                     Sin stock en tu sede
@@ -560,7 +594,9 @@ export default function AdminAlmacenInventario() {
 
         {/* Móvil: cards */}
         <div className="ainv-cards">
-          {rows.length === 0 ? (
+          {stockQ.isLoading ? (
+            <div style={{ padding: 32, textAlign: 'center' }}><Spinner size={20} /></div>
+          ) : rows.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>Sin stock en tu sede</div>
           ) : rows.map(p => {
             const low = p.stock_minimo > 0 && p.cantidad <= p.stock_minimo;
@@ -604,9 +640,11 @@ export default function AdminAlmacenInventario() {
       {modal === 'entrada' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Registrar entrada">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ProductSearch label="Buscar producto del catálogo" search={entradaSearch} setSearch={setEntradaSearch}
-              products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, unidad: p.unidad }))}
-              selected={entrada.items} onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+              <ProductSearch label="Buscar producto del catálogo"
+                products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, unidad: p.unidad }))}
+                selected={entrada.items}
+                onAdd={p => setEntrada({ ...entrada, items: [...entrada.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+
             <ItemsList stock={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, cantidad: null }))}
               items={entrada.items} setItems={items => setEntrada({ ...entrada, items })} showDisponible={false} allowOnu={false} />
             <div>
@@ -721,9 +759,15 @@ export default function AdminAlmacenInventario() {
               <option value="">Seleccionar...</option>
               {(tecnicosQ.data || []).map(t => <option key={t.id} value={t.id}>{`${t.usuario?.nombre || t.nombre} ${t.usuario?.apellido || ''}`.trim()}</option>)}
             </Select>
-            <ProductSearch label="Buscar item" search={asignacionSearch} setSearch={setAsignacionSearch} products={stock.filter(s => s.cantidad > 0)} selected={asignacion.items} onAdd={p => setAsignacion({ ...asignacion, items: [...asignacion.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
-            <ItemsList stock={stock} items={asignacion.items} setItems={items => setAsignacion({ ...asignacion, items })} sedeId={sedeId} />
+            <ProductSearch label="Buscar item"
+              products={stock.filter(s => s.cantidad > 0)} selected={asignacion.items}
+              onAdd={p => setAsignacion({ ...asignacion, items: [...asignacion.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />            
+              <ItemsList stock={stock} items={asignacion.items} setItems={items => setAsignacion({ ...asignacion, items })} sedeId={sedeId} />
+            
             <Input label="Comentario" value={asignacion.comentario} onChange={e => setAsignacion({ ...asignacion, comentario: e.target.value })} />
+            
+            
+            
             <Btn onClick={() => asignarM.mutate()} disabled={!asignacion.tecnico_id || asignacion.items.length === 0 || asignarM.isPending} icon={<Check size={15} />}>Confirmar asignación</Btn>
           </div>
         </UIModal>
@@ -733,7 +777,10 @@ export default function AdminAlmacenInventario() {
       {modal === 'directa' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Salida directa de stock">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ProductSearch label="Buscar producto" search={directaSearch} setSearch={setDirectaSearch} products={stock.filter(s => s.cantidad > 0)} selected={directa.items} onAdd={p => setDirecta({ ...directa, items: [...directa.items, { producto_id: String(p.producto_id), cantidad: '', onu_ids: [] }] })} />
+
+          <ProductSearch label="Buscar producto"
+            products={stock.filter(s => s.cantidad > 0)} selected={directa.items}
+            onAdd={p => setDirecta({ ...directa, items: [...directa.items, { producto_id: String(p.producto_id), cantidad: '', onu_ids: [] }] })} />
             <ItemsList stock={stock} items={directa.items} setItems={items => setDirecta({ ...directa, items })} sedeId={sedeId} />
             <div>
               <label style={{ display: 'block', marginBottom: 5, fontSize: 12, color: 'var(--txt-2)', fontWeight: 500 }}>Fecha de salida</label>
@@ -799,8 +846,10 @@ export default function AdminAlmacenInventario() {
             </div>
             <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 16, paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Productos a enviar</div>
-              <ProductSearch label="Buscar producto" search={envioSearch} setSearch={setEnvioSearch} products={stock.filter(s => s.cantidad > 0)} selected={envio.items} onAdd={p => setEnvio({ ...envio, items: [...envio.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
-              <ItemsList
+              <ProductSearch label="Buscar producto"
+                products={stock.filter(s => s.cantidad > 0)} selected={envio.items}
+                onAdd={p => setEnvio({ ...envio, items: [...envio.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />         
+             <ItemsList
                 stock={stock}
                 items={envio.items}
                 setItems={items => setEnvio({ ...envio, items })}
