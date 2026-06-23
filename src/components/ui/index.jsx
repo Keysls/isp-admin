@@ -72,7 +72,11 @@ export function TimerBadge({ fechaAceptacion, completada }) {
 }
 
 /* ── Btn ─────────────────────────────────────────────────────── */
-export function Btn({ children, variant = 'primary', size = 'md', onClick, disabled, type = 'button', style = {}, icon, loading }) {
+export function Btn({
+  children, variant = 'primary', size = 'md', onClick, disabled,
+  type = 'button', style = {}, icon, loading,
+  className, onMouseEnter, onMouseLeave, // 👈 nuevo
+}) {
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: '0.02em',
@@ -89,7 +93,13 @@ export function Btn({ children, variant = 'primary', size = 'md', onClick, disab
     yellow:  { background: 'rgba(245,158,11,0.1)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.25)' },
   };
   return (
-    <button type={type} onClick={onClick} disabled={disabled || loading}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={className}           // 👈 nuevo
+      onMouseEnter={onMouseEnter}      // 👈 nuevo
+      onMouseLeave={onMouseLeave}      // 👈 nuevo
       style={{ ...base, ...sizes[size], ...variants[variant], ...style }}>
       {loading ? <Spinner size={13} color="currentColor" /> : icon && <span style={{ display: 'flex' }}>{icon}</span>}
       {children}

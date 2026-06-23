@@ -194,6 +194,9 @@ export const stockApi = {
   // BUG 7 FIX: auditoria de equipos malogrados
   listarMalogrados:   (params)       => api.get('/stock/malogrados', { params }),
   reingresarOnuMalograda: (id, data) => api.post(`/stock/malogrados/${id}/reingresar`, data),
+  listarOnusSalidaDirecta: (params)      => api.get('/stock/onus-salida-directa', { params }),
+  reingresarOnuSalidaDirecta: (id, data) => api.post(`/stock/onus-salida-directa/${id}/reingresar`, data),
+  enviarRequerimientoCorreo: (data)      => api.post('/stock/requerimiento-correo', data),
 };
  
  

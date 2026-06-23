@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Check, FileDown, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';
+import { Check, FileDown, Mail, MessageCircle, MoreHorizontal, Package, Plus, Search, Send, TrendingDown, Wifi, X } from 'lucide-react';
 import { onusApi, productosApi, stockApi, tecnicosApi, sedesApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import { Card, Spinner, Btn, Input, Select, Badge, Modal as UIModal } from '../../components/ui';
@@ -16,13 +16,40 @@ function useDebounce(value, delay = 400) {
 }
 
 const CSS = `
-  .ainv-btns    { flex-wrap: wrap; }
+  .ainv-toolbar        { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: nowrap; }
+  .ainv-toolbar-search { flex: 1 1 auto; min-width: 120px; }
+  .ainv-toolbar-btns   { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex-shrink: 0; margin-left: auto; }
+  .ainv-menu-wrap      { position: relative; }
+  .ainv-menu-dropdown  { position: absolute; top: calc(100% + 6px); right: 0; min-width: 230px; z-index: 50; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); overflow: hidden; }
+  .ainv-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--txt);
+    text-align: left;
+    white-space: nowrap;
+    transition: background .12s;
+  }
+  .ainv-menu-item:hover:not(:disabled) { background: var(--bg-3); }
+  .ainv-menu-item:last-child { border-bottom: none; }
+  .ainv-menu-item:disabled   { opacity: 0.5; cursor: not-allowed; }
   .ainv-table   { display: block; }
   .ainv-cards   { display: none; }
 
   @media (max-width: 1080px) {
-    .ainv-btns  { flex-direction: column !important; }
-    .ainv-btns > * { width: 100% !important; justify-content: center; }
+    .ainv-toolbar        { flex-direction: column !important; align-items: stretch; }
+    .ainv-toolbar-search { width: 100%; }
+    .ainv-toolbar-btns   { width: 100%; }
+    .ainv-toolbar-btns > * { flex: 1; justify-content: center; }
+    .ainv-menu-dropdown  { left: 0; right: 0; width: 100%; min-width: 0; }
     .ainv-table { display: none !important; }
     .ainv-cards { display: flex !important; flex-direction: column; gap: 10px; padding: 10px; }
     .ainv-envio-pendiente { flex-direction: column !important; }
@@ -95,6 +122,14 @@ function SedeBadge({ sedeNombre }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--txt)' }}>
       {sedeNombre}
     </div>
+  );
+}
+
+function WhatsAppIcon({ size = 15, color = '#25D366' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.85.5 3.59 1.42 5.1L2 22l5.13-1.5c1.43.78 3.07 1.21 4.91 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm5.78 14.08c-.24.67-1.4 1.31-1.93 1.39-.5.08-1.13.11-1.82-.11-.42-.13-.95-.31-1.64-.6-2.88-1.24-4.76-4.13-4.9-4.32-.14-.19-1.18-1.57-1.18-3 0-1.42.74-2.12 1-2.41.26-.29.57-.36.76-.36.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.81 2 .88 2.14.07.14.12.31.02.5-.1.19-.15.31-.29.48-.14.17-.3.38-.43.51-.14.14-.29.29-.12.57.17.28.76 1.25 1.63 2.02 1.12.99 2.07 1.3 2.36 1.44.29.14.46.12.63-.07.17-.19.73-.85.93-1.14.19-.29.39-.24.65-.14.27.1 1.7.8 1.99.95.29.14.48.21.55.33.07.12.07.7-.17 1.37z"/>
+    </svg>
   );
 }
 
@@ -191,6 +226,39 @@ function ItemsList({ stock, items, setItems, showDisponible = true, sedeId, allo
   );
 }
 
+function ItemsListRequerimiento({ stock, items, setItems, productos = [] }) {
+  const update = (idx, key, value) => setItems(items.map((it, i) => i === idx ? { ...it, [key]: value } : it));
+  const remove = idx => setItems(items.filter((_, i) => i !== idx));
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Productos solicitados ({items.length})</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {items.length === 0 && <div style={{ color: 'var(--txt-3)', fontSize: 13, padding: '8px 0' }}>Busca y selecciona productos.</div>}
+        {items.map((item, idx) => {
+          const prodStock = stock.find(s => String(s.producto_id) === String(item.producto_id));
+          const prodCat   = productos.find(p => String(p.id) === String(item.producto_id));
+          const prod = prodStock || (prodCat ? { producto_id: prodCat.id, producto: prodCat.nombre, codigo: prodCat.codigo, cantidad: 0 } : null);          return (
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 110px auto', gap: 8, alignItems: 'center', padding: 8, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)' }}>
+              <div>
+                <strong style={{ fontSize: 13 }}>{prod?.producto || 'Producto'}</strong>
+                <div style={{ color: 'var(--txt-3)', fontSize: 11 }}>
+                  {prod?.codigo || '—'} · stock actual: <strong style={{ color: prod?.cantidad > 0 ? 'var(--txt-2)' : '#A32D2D' }}>{prod?.cantidad ?? 0}</strong>
+                </div>
+              </div>
+              <input
+                style={{ height: 34, border: '1px solid var(--border)', borderRadius: 8, padding: '0 8px', background: 'var(--bg-2)', color: 'var(--txt)', fontSize: 13 }}
+                type="number" min="1" placeholder="Cantidad"
+                value={item.cantidad} onChange={e => update(idx, 'cantidad', e.target.value)}
+              />
+              <Btn variant="danger" size="sm" onClick={() => remove(idx)}><X size={15} /></Btn>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function OnuPanelInline({ sedeId, productoId, selectedIds, onChange }) {
   const [filter, setFilter] = useState('');
   const onusQ = useQuery({
@@ -272,6 +340,22 @@ export default function AdminAlmacenInventario() {
   const [modal, setModal] = useState(null);
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
+    };
+    const handleKey = (e) => { if (e.key === 'Escape') setMenuAbierto(false); };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [menuAbierto]);
 
   const hoy = new Date().toISOString().split('T')[0];
 
@@ -284,8 +368,17 @@ export default function AdminAlmacenInventario() {
   const [directaSearch,    setDirectaSearch]    = useState('');
   const [envio,      setEnvio]      = useState({ sede_destino_id: '', guia: '', comentario: '', items: [], fecha: hoy });
   const [envioSearch, setEnvioSearch] = useState('');
+  const [requerimiento, setRequerimiento] = useState({ items: [], nota: '' });
+  const [requerimientoSearch, setRequerimientoSearch] = useState('');
 
-  const stockQ          = useQuery({ queryKey: ['admin-stock-sede', sedeId, qDebounced], enabled: Boolean(sedeId), queryFn: () => stockApi.listar({ q: qDebounced || undefined }).then(r => r.data) });
+  const stockQ = useQuery({
+    queryKey: ['admin-stock-sede', sedeId, qDebounced],
+    enabled: Boolean(sedeId),
+    queryFn: () =>
+      stockApi.listar({ q: qDebounced || undefined }).then(r => r.data),
+
+    placeholderData: (previousData) => previousData,
+  });
   const productosQ      = useQuery({ queryKey: ['admin-productos-visibles'], queryFn: () => productosApi.listar().then(r => r.data) });
   const tecnicosQ       = useQuery({ queryKey: ['admin-tecnicos-almacen'], queryFn: () => tecnicosApi.listar().then(r => r.data) });
   const onusExistentesQ = useQuery({ queryKey: ['onus-existentes', sedeId, onuForm.producto_id], enabled: Boolean(sedeId && onuForm.producto_id), queryFn: () => onusApi.listar({ sedeId, producto_id: onuForm.producto_id, solo_disponibles: false }).then(r => r.data) });
@@ -360,6 +453,22 @@ export default function AdminAlmacenInventario() {
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar la ONU'),
   });
 
+  const onusSalidaDirectaQ = useQuery({
+    queryKey: ['onus-salida-directa', sedeId],
+    enabled: Boolean(sedeId) && modal === 'reingresar-onu',
+    queryFn: () => stockApi.listarOnusSalidaDirecta({ sedeId }).then(r => r.data),
+  });
+
+  const reingresarSalidaDirectaM = useMutation({
+    mutationFn: (id) => stockApi.reingresarOnuSalidaDirecta(id),
+    onSuccess: () => {
+      toast.success('ONU reingresada al stock');
+      qc.invalidateQueries({ queryKey: ['onus-salida-directa'] });
+      refresh();
+    },
+    onError: e => toast.error(e.response?.data?.error || 'No se pudo reingresar la ONU'),
+  });
+
   const confirmarEnvioM = useMutation({
     mutationFn: (id) => stockApi.confirmarEnvio(id),
     onSuccess: () => { toast.success('Envío confirmado'); setEnvioSeleccionado(null); setModal(null); refresh(); qc.invalidateQueries({ queryKey: ['envios-pendientes'] }); },
@@ -402,6 +511,49 @@ export default function AdminAlmacenInventario() {
     onError: e => toast.error(e.response?.data?.error || 'No se pudo registrar el envío'),
   });
 
+  const requerimientoCorreoM = useMutation({
+    mutationFn: () => stockApi.enviarRequerimientoCorreo({
+      sedeId,
+      items: requerimiento.items.filter(i => i.producto_id && Number(i.cantidad) > 0),
+      nota: requerimiento.nota,
+    }),
+    onSuccess: (res) => {
+      toast.success(res?.data?.message || 'Correo enviado');
+      setRequerimiento({ items: [], nota: '' });
+      setRequerimientoSearch('');
+      setModal(null);
+    },
+    onError: e => toast.error(e.response?.data?.error || 'No se pudo enviar el correo'),
+  });
+
+  const enviarRequerimientoWhatsapp = () => {
+    const validos = requerimiento.items.filter(i => i.producto_id && Number(i.cantidad) > 0);
+    if (validos.length === 0) return;
+
+    const lineas = validos.map(i => {
+      const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
+      const nombre = prod?.producto || 'Producto';
+      const stockActual = prod?.cantidad ?? 0;
+      return `• ${nombre} — solicito: *${i.cantidad}* (stock actual: ${stockActual})`;
+    });
+
+    const partes = [
+      ` _*Requerimiento de stock — ${sedeNombre}*_`,
+      '',
+      ...lineas,
+    ];
+    if (requerimiento.nota.trim()) {
+      partes.push('', `Nota: ${requerimiento.nota.trim()}`);
+    }
+
+    const mensaje = encodeURIComponent(partes.join('\n'));
+    window.open(`https://wa.me/?text=${mensaje}`, '_blank');
+
+    setRequerimiento({ items: [], nota: '' });
+    setRequerimientoSearch('');
+    setModal(null);
+  };
+
   const rows       = stockQ.data || [];
   const productos  = productosQ.data || [];
   const stock      = stockQ.data || [];
@@ -428,7 +580,7 @@ export default function AdminAlmacenInventario() {
     });
   };
 
-  if (stockQ.isLoading) return (
+  if (stockQ.isLoading && !stockQ.data)   return (
     <div style={{ padding: 28, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
       <Spinner size={28} />
     </div>
@@ -446,30 +598,77 @@ export default function AdminAlmacenInventario() {
         <SedeBadge sedeNombre={sedeNombre} />
       </div>
 
-      {/* ── Barra de acciones + buscador ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-2)', minWidth: 180 }}>
+      {/* ── Buscador + acciones principales ── */}
+      <div className="ainv-toolbar">
+        <div className="ainv-toolbar-search" style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-2)' }}>
           <Search size={14} color="var(--txt-3)" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar ítem..." style={{ border: 0, outline: 0, flex: 1, fontSize: 13, background: 'transparent', color: 'var(--txt)' }} />
         </div>
-        <Btn variant="ghost" disabled={!sedeId} onClick={() => { setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal('entrada'); }} icon={<Plus size={15} />}>
-          Registrar entrada
-        </Btn>
-        <Btn variant="danger" onClick={() => { setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setDirectaSearch(''); setModal('directa'); }} icon={<TrendingDown size={15} />}>
-          Salida directa
-        </Btn>
-        <Btn variant="ghost" onClick={exportarExcel} disabled={rows.length === 0} icon={<FileDown size={15} />}>
-          Exportar Excel
-        </Btn>
-        {puedeEnviarStock && (
-          <Btn variant="ghost" onClick={() => setModal('envio')} icon={<Send size={15} />}>
-            Enviar a sede
+
+        <div className="ainv-toolbar-btns">
+          <Btn
+            variant="ghost"
+            disabled={!sedeId}
+            onClick={() => { setEntrada({ comentario: '', items: [], fecha: hoy }); setEntradaSearch(''); setModal('entrada'); }}
+            icon={<Plus size={15} />}
+            style={{
+              background: '#fff',
+              color: '#000',
+              borderColor: 'var(--border-2)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F2F2F2'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+          >
+            Registrar entrada
           </Btn>
-        )}
-        <Btn onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }} icon={<Send size={15} />}
-          style={{ background: '#185FA5', color: '#fff', border: 'none' }}>
-          Asignar a técnico
-        </Btn>
+
+          <Btn
+            onClick={() => { setAsignacion({ tecnico_id: '', comentario: '', items: [], onu_ids: [] }); setAsignacionSearch(''); setModal('asignar'); }}
+            icon={<Send size={15} />}
+            style={{ background: '#185FA5', color: '#fff', border: 'none' }}
+          >
+            Asignar a técnico
+          </Btn>
+
+          <div className="ainv-menu-wrap" ref={menuRef}>
+            <Btn
+              variant="ghost"
+              onClick={() => setMenuAbierto(v => !v)}
+              icon={<MoreHorizontal size={15} />}
+              style={{
+                background: '#fff',
+                color: '#000',
+                borderColor: 'var(--border-2)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F2F2F2'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+            >
+              Más
+            </Btn>
+
+            {menuAbierto && (
+              <div className="ainv-menu-dropdown">
+                <button className="ainv-menu-item" onClick={() => { setMenuAbierto(false); setDirecta({ comentario: '', items: [], onu_ids: [], fecha: hoy }); setDirectaSearch(''); setModal('directa'); }}>
+                  <TrendingDown size={15} style={{ color: '#A32D2D' }} /> Salida directa
+                </button>
+                <button className="ainv-menu-item" disabled={rows.length === 0} onClick={() => { setMenuAbierto(false); exportarExcel(); }}>
+                  <FileDown size={15} /> Exportar Excel
+                </button>
+                {puedeEnviarStock && (
+                  <button className="ainv-menu-item" onClick={() => { setMenuAbierto(false); setModal('envio'); }}>
+                    <Send size={15} /> Enviar a sede
+                  </button>
+                )}
+                <button className="ainv-menu-item" onClick={() => { setMenuAbierto(false); setRequerimiento({ items: [], nota: '' }); setRequerimientoSearch(''); setModal('requerimiento'); }}>
+                  <WhatsAppIcon size={15} color="#128C7E" /> Solicitar requerimiento
+                </button>
+                <button className="ainv-menu-item" onClick={() => { setMenuAbierto(false); setModal('reingresar-onu'); }}>
+                  <Wifi size={15} /> Reingresar ONU
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Envíos pendientes ── */}
@@ -745,6 +944,42 @@ export default function AdminAlmacenInventario() {
         </UIModal>
       )}
 
+      {/* Modal: Reingresar ONU (salida directa) */}
+      {modal === 'reingresar-onu' && (
+        <UIModal open={true} onClose={() => setModal(null)} title="Reingresar ONU al stock">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--txt-3)' }}>
+              ONUs que salieron por "Salida directa" y pueden volver al stock disponible de tu sede.
+            </p>
+            {onusSalidaDirectaQ.isLoading ? (
+              <div style={{ padding: 24, textAlign: 'center' }}><Spinner size={20} /></div>
+            ) : (onusSalidaDirectaQ.data || []).length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--txt-3)', fontSize: 13 }}>
+                No hay ONUs en salida directa para reingresar.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(onusSalidaDirectaQ.data || []).map(onu => (
+                  <div key={onu.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: '0.5px solid var(--border)', background: 'var(--bg-card)' }}>
+                    <Wifi size={15} style={{ color: 'var(--txt-3)', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--txt)' }}>{onu.codigoPon}</div>
+                      <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{onu.producto}{onu.codigo ? ` · ${onu.codigo}` : ''}</div>
+                    </div>
+                    <button
+                      onClick={() => reingresarSalidaDirectaM.mutate(onu.id)}
+                      disabled={reingresarSalidaDirectaM.isPending}
+                      style={{ fontSize: 12, color: '#0F6E56', display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', background: '#9FE1CB', border: 'none', fontWeight: 600 }}>
+                      <Check size={13} /> Reingresar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </UIModal>
+      )}
+
       {/* Modal: Confirmar recepción */}
       {modal === 'confirmar-envio' && (
         <UIModal open={true} onClose={() => setModal(null)} title="Confirmar recepción">
@@ -851,6 +1086,35 @@ export default function AdminAlmacenInventario() {
                   return total + cant;
                 }, 0)} productos)
               </Btn>
+            </div>
+          </div>
+        </UIModal>
+      )}
+
+      {/* Modal: Solicitar requerimiento (WhatsApp / Correo) */}
+      {modal === 'requerimiento' && (
+        <UIModal open={true} onClose={() => setModal(null)} title="Solicitar requerimiento de stock">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <ProductSearch label="Buscar producto" search={requerimientoSearch} setSearch={setRequerimientoSearch}
+              products={productos.map(p => ({ producto_id: p.id, producto: p.nombre, codigo: p.codigo, categoria: p.categoria, cantidad: (stock.find(s => s.producto_id === p.id) || {}).cantidad ?? null }))} selected={requerimiento.items}
+              onAdd={p => setRequerimiento({ ...requerimiento, items: [...requerimiento.items, { producto_id: String(p.producto_id), cantidad: '' }] })} />
+            <ItemsListRequerimiento stock={stock} productos={productos} items={requerimiento.items} setItems={items => setRequerimiento({ ...requerimiento, items })} />
+            <Input label="Nota (opcional)" value={requerimiento.nota} onChange={e => setRequerimiento({ ...requerimiento, nota: e.target.value })} placeholder="Ej: urgente, para instalaciones de esta semana..." />
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn onClick={enviarRequerimientoWhatsapp}
+                disabled={requerimiento.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0}
+                icon={<MessageCircle size={15} />} style={{ flex: 1, minWidth: 160, background: '#25D366', color: '#fff', border: 'none' }}>
+                Enviar por WhatsApp
+              </Btn>
+              <Btn onClick={() => requerimientoCorreoM.mutate()}
+                disabled={requerimiento.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0 || requerimientoCorreoM.isPending}
+                icon={<Mail size={15} />} style={{ flex: 1, minWidth: 160, background: '#185FA5', color: '#fff', border: 'none' }}>
+                Enviar por correo
+              </Btn>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>
+              WhatsApp abre el chat para que elijas el contacto. El correo se envía directo al correo configurado para tu sede.
             </div>
           </div>
         </UIModal>
