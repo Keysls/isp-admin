@@ -1104,7 +1104,7 @@ export default function AdminAlmacenInventario() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Btn onClick={enviarRequerimientoWhatsapp}
                 disabled={requerimiento.items.filter(i => i.producto_id && Number(i.cantidad) > 0).length === 0}
-                icon={<MessageCircle size={15} />} style={{ flex: 1, minWidth: 160, background: '#25D366', color: '#fff', border: 'none' }}>
+                icon={<WhatsAppIcon size={15} color="#fff" />} style={{ flex: 1, minWidth: 160, background: '#25D366', color: '#fff', border: 'none' }}>
                 Enviar por WhatsApp
               </Btn>
               <Btn onClick={() => requerimientoCorreoM.mutate()}
