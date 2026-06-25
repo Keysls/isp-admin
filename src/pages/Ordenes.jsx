@@ -188,7 +188,6 @@ function ModalSubirExcel({ open, onClose, tipoLabel }) {
   const [resultado, setResultado] = useState(null);
   const [tecnicoId, setTecnicoId] = useState('');
   const [step,      setStep]      = useState('upload');
-
   const { data: tecnicosRaw } = useQuery({
     queryKey: ['tecnicos-activos'],
     queryFn:  () => tecnicosApi.listar({ activo: true }).then(r => r.data),
@@ -454,6 +453,7 @@ export default function OrdenesPage() {
   const [filters, setFilters]               = useState({ estado: searchParams.get('estado') || '', search: '', tecnicoId: '' });
   const [page, setPage]                     = useState(1);
   const [searchOpen, setSearchOpen]         = useState(false);
+  const [spinning, setSpinning]             = useState(false);
 
   // ── Selección múltiple ─────────────────────────────────────
   // Map<id, {id, nServicio, abonado}> → persiste al cambiar búsqueda
@@ -561,7 +561,7 @@ export default function OrdenesPage() {
           </p>
         </div>
         <div className="ordenes-header-btns" style={{ display: 'flex', gap: 8 }}>
-          <Btn variant="ghost" size="sm" onClick={() => { refetch(); qc.invalidateQueries(['stats']); }} icon={<RefreshCw size={13} />}>
+          <Btn variant="ghost" size="sm" onClick={async () => { setSpinning(true); await refetch(); qc.invalidateQueries(['stats']); setTimeout(() => setSpinning(false), 600); }} icon={<span style={{ display: 'inline-flex' }} className={spinning ? 'spin' : ''}><RefreshCw size={13} /></span>}>
             {isMobile ? '' : 'Actualizar'}
           </Btn>
           <Btn variant="primary" size="sm" onClick={() => setShowExcel(true)} icon={<Upload size={13} />}>

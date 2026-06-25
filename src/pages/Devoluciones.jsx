@@ -325,6 +325,7 @@ export default function DevolucionesPage() {
   const [tabSeccion,   setTabSeccion]   = useState('devoluciones'); // 'devoluciones' | 'malogrados'
   const [modalRechazo, setModalRechazo] = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [spinning, setSpinning] = useState(false);
 
   const { data: devoluciones = [], isLoading, refetch } = useQuery({
     queryKey: ['devoluciones', tabEstado],
@@ -406,8 +407,8 @@ export default function DevolucionesPage() {
               <FileSpreadsheet size={14} /> Excel
             </button>
           )}
-          <button style={S.btn('ghost')} onClick={() => refetch()}>
-            <RefreshCw size={13} /> Actualizar
+          <button style={S.btn('ghost')} onClick={async () => { setSpinning(true); await refetch(); setTimeout(() => setSpinning(false), 600); }}>
+            <span style={{ display: 'inline-flex' }} className={spinning ? 'spin' : ''}><RefreshCw size={13} /></span> Actualizar
           </button>
         </div>
       </div>

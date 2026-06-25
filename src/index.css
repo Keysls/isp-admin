@@ -87,3 +87,5 @@ input, select, textarea { font-family: inherit; }
 
 .animate-fade  { animation: fadeIn .25s ease both; }
 .animate-slide { animation: slideInLeft .2s ease both; }
+
+.spin { animation: spin 1s linear infinite; }
