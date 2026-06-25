@@ -549,9 +549,7 @@ export default function AdminAlmacenInventario() {
     const mensaje = encodeURIComponent(partes.join('\n'));
     window.open(`https://wa.me/?text=${mensaje}`, '_blank');
 
-    setRequerimiento({ items: [], nota: '' });
-    setRequerimientoSearch('');
-    setModal(null);
+    toast.success('Mensaje de WhatsApp abierto');
   };
 
   const rows       = stockQ.data || [];
