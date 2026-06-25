@@ -519,9 +519,6 @@ export default function AdminAlmacenInventario() {
     }),
     onSuccess: (res) => {
       toast.success(res?.data?.message || 'Correo enviado');
-      setRequerimiento({ items: [], nota: '' });
-      setRequerimientoSearch('');
-      setModal(null);
     },
     onError: e => toast.error(e.response?.data?.error || 'No se pudo enviar el correo'),
   });
