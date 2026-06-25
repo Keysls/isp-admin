@@ -529,7 +529,8 @@ export default function AdminAlmacenInventario() {
 
     const lineas = validos.map(i => {
       const prod = stock.find(s => String(s.producto_id) === String(i.producto_id));
-      const nombre = prod?.producto || 'Producto';
+      const prodCat = productos.find(p => String(p.id) === String(i.producto_id));
+      const nombre = prod?.producto || prodCat?.nombre || 'Producto';
       const stockActual = prod?.cantidad ?? 0;
       return `• ${nombre} — solicito: *${i.cantidad}* (stock actual: ${stockActual})`;
     });
