@@ -191,7 +191,7 @@ export const stockApi = {
   aprobarDevolucion:  (id)           => api.post(`/stock/devoluciones/${id}/aprobar`),
   rechazarDevolucion: (id, data)     => api.post(`/stock/devoluciones/${id}/rechazar`, data),
   revisarRecojo:      (id, data)     => api.post(`/stock/recojos/${id}/revisar`, data),
-  // BUG 7 FIX: auditoria de equipos malogrados
+revisarDetalleDevolucion: (detalleId, data) => api.post(`/stock/devoluciones/detalle/${detalleId}/revisar`, data),  // BUG 7 FIX: auditoria de equipos malogrados
   listarMalogrados:   (params)       => api.get('/stock/malogrados', { params }),
   reingresarOnuMalograda: (id, data) => api.post(`/stock/malogrados/${id}/reingresar`, data),
   listarOnusSalidaDirecta: (params)      => api.get('/stock/onus-salida-directa', { params }),

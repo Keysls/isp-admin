@@ -83,12 +83,89 @@ function EstadoBadge({ estado }) {
   );
 }
 
-// ── Tabla unificada de ítems (detalles + recojos) ─────────────
-function TablaItems({ dev, onRevisarRecojo, revisarPending }) {
+function FilaMaterialRevision({ dev, fila, onRevisar, revisarPending }) {
+  const [buena, setBuena] = useState(String(fila.cantidad));
+  const [mala,  setMala]  = useState('0');
+
+  const total = Number(fila.cantidad);
+  const sumaOk = (Number(buena) || 0) + (Number(mala) || 0) === total;
+
+  return (
+    <tr>
+      <td style={S.td}>
+        <span style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#EFF6FF', color: '#1D4ED8' }}>
+          Material
+        </span>
+      </td>
+      <td style={S.td}>
+        <div style={{ fontWeight: 600, color: 'var(--txt)' }}>{fila.producto}</div>
+        <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fila.cantidad} {fila.unidad}</div>
+      </td>
+      <td style={{ ...S.td, color: 'var(--txt-3)' }}>—</td>
+      <td style={{ ...S.td, color: 'var(--txt-3)' }}>—</td>
+      <td style={{ ...S.td, color: 'var(--txt-2)' }}>{fila.tecnico}</td>
+      <td style={{ ...S.td, color: 'var(--txt-3)' }}>—</td>
+      <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fila.fecha}</td>
+      <td style={S.td}>
+        <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#FEF3C7', color: '#92400E' }}>
+          En revisión
+        </span>
+      </td>
+      <td style={S.td}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 220 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              style={{ ...S.btn('green'), padding: '3px 8px', fontSize: 10 }}
+              onClick={() => { setBuena(String(total)); setMala('0'); }}
+            >
+              Todo bueno
+            </button>
+            <button
+              style={{ ...S.btn('red'), padding: '3px 8px', fontSize: 10 }}
+              onClick={() => { setBuena('0'); setMala(String(total)); }}
+            >
+              Todo malo
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ fontSize: 10, color: 'var(--txt-3)' }}>Buenas</label>
+            <input
+              type="number" min="0" max={total} value={buena}
+              onChange={e => setBuena(e.target.value)}
+              style={{ width: 50, padding: '3px 6px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 4 }}
+            />
+            <label style={{ fontSize: 10, color: 'var(--txt-3)' }}>Malas</label>
+            <input
+              type="number" min="0" max={total} value={mala}
+              onChange={e => setMala(e.target.value)}
+              style={{ width: 50, padding: '3px 6px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 4 }}
+            />
+          </div>
+          {!sumaOk && (
+            <span style={{ fontSize: 10, color: '#DC2626' }}>
+              Buenas + Malas debe ser {total}
+            </span>
+          )}
+          <button
+            style={{ ...S.btn('blue'), padding: '4px 10px', fontSize: 11 }}
+            disabled={!sumaOk || revisarPending}
+            onClick={() => onRevisar(fila._detalleId, Number(buena) || 0, Number(mala) || 0)}
+          >
+            Confirmar revisión
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function TablaItems({ dev, onRevisarRecojo, onRevisarDetalle, revisarPending, revisarDetallePending }) {
   // Unificar detalles de material y recojos en una sola lista de filas
   const filasMaterial = (dev.detalles || []).map(d => ({
     _tipo: 'material',
-    id: `mat-${d.productoId}`,
+    _detalleId: d.id,
+    _estadoDetalle: d.estado,
+    id: `mat-${d.id ?? d.productoId}`,
     tipo: 'Material',
     producto: d.nombre,
     pon: '—',
@@ -97,9 +174,12 @@ function TablaItems({ dev, onRevisarRecojo, revisarPending }) {
     tecnico: `${dev.tecnico.nombre} ${dev.tecnico.apellido}`,
     contrato: '—',
     fecha: fmtFecha(dev.fecha),
-    estado: dev.estado === 'aprobado' ? 'entregado' : dev.estado === 'rechazado' ? 'rechazado_mat' : 'pendiente_mat',
+    estado: d.estado,
     cantidad: d.cantidad,
     unidad: d.unidad || 'und',
+    cantidadBuena: d.cantidadBuena,
+    cantidadMala:  d.cantidadMala,
+    comentario:    d.comentario,
   }));
 
   const filasRecojo = (dev.recojos || []).map(r => ({
@@ -137,79 +217,100 @@ function TablaItems({ dev, onRevisarRecojo, revisarPending }) {
           </tr>
         </thead>
         <tbody>
-          {filas.map(fila => (
-            <tr key={fila.id}>
-              <td style={S.td}>
-                <span style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  background: fila._tipo === 'material' ? '#EFF6FF' : '#F5F3FF',
-                  color:      fila._tipo === 'material' ? '#1D4ED8'  : '#6D28D9' }}>
-                  {fila.tipo}
-                </span>
-              </td>
-              <td style={S.td}>
-                <div style={{ fontWeight: 600, color: 'var(--txt)' }}>{fila.producto}</div>
-                {fila._tipo === 'material' && (
-                  <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>{fila.cantidad} {fila.unidad}</div>
-                )}
-              </td>
-              <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12, color: fila.pon !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
-                {fila.pon}
-              </td>
-              <td style={{ ...S.td, color: fila.cliente !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
-                {fila.cliente}
-              </td>
-              <td style={{ ...S.td, color: 'var(--txt-2)' }}>{fila.tecnico}</td>
-              <td style={{ ...S.td, color: fila.contrato !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
-                {fila.contrato}
-              </td>
-              <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fila.fecha}</td>
-              <td style={S.td}>
-                {fila._tipo === 'material' ? (
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                    background: dev.estado === 'aprobado' ? '#DCFCE7' : dev.estado === 'rechazado' ? '#FEE2E2' : '#FEF3C7',
-                    color:      dev.estado === 'aprobado' ? '#166534' : dev.estado === 'rechazado' ? '#991B1B' : '#92400E' }}>
-                    {dev.estado === 'aprobado' ? 'Al stock' : dev.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+          {filas.map(fila => {
+            // Material en_revision (devolucion ya aceptada) → fila especial con inputs
+            if (fila._tipo === 'material' && fila._estadoDetalle === 'en_revision' && dev.estado === 'aprobado') {
+              return (
+                <FilaMaterialRevision
+                  key={fila.id}
+                  dev={dev}
+                  fila={fila}
+                  onRevisar={onRevisarDetalle}
+                  revisarPending={revisarDetallePending}
+                />
+              );
+            }
+
+            return (
+              <tr key={fila.id}>
+                <td style={S.td}>
+                  <span style={{ padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                    background: fila._tipo === 'material' ? '#EFF6FF' : '#F5F3FF',
+                    color:      fila._tipo === 'material' ? '#1D4ED8'  : '#6D28D9' }}>
+                    {fila.tipo}
                   </span>
-                ) : (
-                  <EstadoBadge estado={fila._estadoRecojo} />
-                )}
-              </td>
-              <td style={S.td}>
-                {/* Acciones de revisión solo para recojos en_revision cuando la devolucion ya fue ACEPTADA */}
-                {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'aprobado' && (
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    <button
-                      style={{ ...S.btn('green'), padding: '4px 10px', fontSize: 11 }}
-                      onClick={() => onRevisarRecojo(fila._recojoId, 'bueno')}
-                      disabled={revisarPending}
-                      title="Bueno — suma al stock"
-                    >
-                      <CheckCircle size={11} /> Bueno
-                    </button>
-                    <button
-                      style={{ ...S.btn('red'), padding: '4px 10px', fontSize: 11 }}
-                      onClick={() => onRevisarRecojo(fila._recojoId, 'malogrado')}
-                      disabled={revisarPending}
-                      title="Malogrado — va a lista de averiados"
-                    >
-                      <XCircle size={11} /> Malo
-                    </button>
-                  </div>
-                )}
-                {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'pendiente' && (
-                  <span style={{ fontSize: 11, color: 'var(--txt-3)', fontStyle: 'italic' }}>
-                    Acepta primero
-                  </span>
-                )}
-                {fila._tipo === 'recojo' && fila._estadoRecojo !== 'en_revision' && (
-                  <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
-                )}
-                {fila._tipo === 'material' && (
-                  <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
-                )}
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td style={S.td}>
+                  <div style={{ fontWeight: 600, color: 'var(--txt)' }}>{fila.producto}</div>
+                  {fila._tipo === 'material' && (
+                    <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>
+                      {fila.cantidad} {fila.unidad}
+                      {fila._estadoDetalle === 'revisado' && (
+                        <span style={{ marginLeft: 6, color: 'var(--txt-3)' }}>
+                          ({fila.cantidadBuena} buenas / {fila.cantidadMala} malas)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12, color: fila.pon !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                  {fila.pon}
+                </td>
+                <td style={{ ...S.td, color: fila.cliente !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                  {fila.cliente}
+                </td>
+                <td style={{ ...S.td, color: 'var(--txt-2)' }}>{fila.tecnico}</td>
+                <td style={{ ...S.td, color: fila.contrato !== '—' ? 'var(--txt)' : 'var(--txt-3)' }}>
+                  {fila.contrato}
+                </td>
+                <td style={{ ...S.td, color: 'var(--txt-3)', whiteSpace: 'nowrap' }}>{fila.fecha}</td>
+                <td style={S.td}>
+                  {fila._tipo === 'material' ? (
+                    <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                      background: fila._estadoDetalle === 'revisado' ? '#DCFCE7' : '#FEF3C7',
+                      color:      fila._estadoDetalle === 'revisado' ? '#166534' : '#92400E' }}>
+                      {fila._estadoDetalle === 'revisado' ? 'Revisado' : fila._estadoDetalle === 'en_revision' ? 'En revisión' : 'Pendiente'}
+                    </span>
+                  ) : (
+                    <EstadoBadge estado={fila._estadoRecojo} />
+                  )}
+                </td>
+                <td style={S.td}>
+                  {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'aprobado' && (
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button
+                        style={{ ...S.btn('green'), padding: '4px 10px', fontSize: 11 }}
+                        onClick={() => onRevisarRecojo(fila._recojoId, 'bueno')}
+                        disabled={revisarPending}
+                        title="Bueno — suma al stock"
+                      >
+                        <CheckCircle size={11} /> Bueno
+                      </button>
+                      <button
+                        style={{ ...S.btn('red'), padding: '4px 10px', fontSize: 11 }}
+                        onClick={() => onRevisarRecojo(fila._recojoId, 'malogrado')}
+                        disabled={revisarPending}
+                        title="Malogrado — va a lista de averiados"
+                      >
+                        <XCircle size={11} /> Malo
+                      </button>
+                    </div>
+                  )}
+                  {fila._tipo === 'recojo' && fila._estadoRecojo === 'en_revision' && dev.estado === 'pendiente' && (
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)', fontStyle: 'italic' }}>
+                      Acepta primero
+                    </span>
+                  )}
+                  {fila._tipo === 'recojo' && fila._estadoRecojo !== 'en_revision' && (
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
+                  )}
+                  {fila._tipo === 'material' && fila._estadoDetalle !== 'en_revision' && (
+                    <span style={{ fontSize: 11, color: 'var(--txt-3)' }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -357,6 +458,16 @@ export default function DevolucionesPage() {
     onError: (e) => toast.error(e.response?.data?.error || 'Error'),
   });
 
+  const mutRevisarDetalle = useMutation({
+    mutationFn: ({ detalleId, cantidadBuena, cantidadMala }) =>
+      stockApi.revisarDetalleDevolucion(detalleId, { cantidadBuena, cantidadMala }),
+    onSuccess: () => {
+      toast.success('✅ Material revisado');
+      invalidar();
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al revisar material'),
+  });
+
   const exportToExcel = () => {
     if (!devoluciones.length) { toast.error('No hay datos para exportar'); return; }
     const rows = devoluciones.flatMap(dev =>
@@ -477,6 +588,9 @@ export default function DevolucionesPage() {
                   dev={dev}
                   onRevisarRecojo={(recojoId, resultado) => mutRevisarRecojo.mutate({ recojoId, resultado })}
                   revisarPending={mutRevisarRecojo.isPending}
+                  onRevisarDetalle={(detalleId, cantidadBuena, cantidadMala) =>
+                    mutRevisarDetalle.mutate({ detalleId, cantidadBuena, cantidadMala })}
+                  revisarDetallePending={mutRevisarDetalle.isPending}
                 />
 
                 {/* Acciones globales — solo pendientes */}
