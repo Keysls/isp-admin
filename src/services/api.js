@@ -2,8 +2,19 @@ import axios from 'axios';
 
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
-const api = axios.create({ baseURL: '/api', timeout: 30000 });
+/*const api = axios.create({ 
+  baseURL: '/api', 
+  timeout: 30000 });
+*/
 
+const api = axios.create({ 
+  baseURL: `${BACKEND_URL}/api`, 
+  timeout: 30000,
+  headers: {
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+  },
+});
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('admin_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
